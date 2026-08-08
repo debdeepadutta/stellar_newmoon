@@ -50,4 +50,4 @@ Midnight network, Compact, Midnight.js SDK, React/Vite, Lace wallet
    Open `http://localhost:5173` in your browser to interact with the dApp.
 
 ## Demo Video
-[PLACEHOLDER — I will add the link after recording]
+[Watch the Live Demo Recording](https://drive.google.com/file/d/1Kp8JfNEO_S2K9DEA0CZzRRbc11JrSQc4/view?usp=sharing)
