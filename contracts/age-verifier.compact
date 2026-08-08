@@ -1,0 +1,18 @@
+pragma language_version >= 0.23;
+
+export ledger minimumAge: Uint<32>;
+export ledger lastVerificationSuccess: Boolean;
+
+// Deploy the contract with a minimum age requirement
+export circuit deploy(minAge: Uint<32>): [] {
+    minimumAge = disclose(minAge);
+    lastVerificationSuccess = false;
+}
+
+// Private verification circuit
+// The user's actual age (myAge) is a private input.
+// It is NEVER revealed to the network!
+export circuit verify(myAge: Uint<32>): [] {
+    assert(myAge >= minimumAge, "You do not meet the minimum age requirement!");
+    lastVerificationSuccess = true;
+}
