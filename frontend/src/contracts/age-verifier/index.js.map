@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "file": "index.js",
+  "sourceRoot": "../../../../",
+  "sources": ["contracts/age-verifier.compact"],
+  "names": [],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAKA;;;;;;;;;;MAQA,AAAA,MAEC;;;;;;;;;;;;;;;;;;;;;;OAAA;;;;GANA;EAJD;;;;;UAAY,OAAe;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IAH3B;;;;;;;;;yEAAmC;IACnC;;;;;;;;;yEAA+C;4BAGpC,OAAK;;UACZ,KAAU;IAAV;;;;;;;2HAAA,KAAU;;yEAAA;IACV;;;;;;;;;yEAAuB;;;;;;;GAC1B;EAID,AAAA,SAEC;IADG;;;;;;;;;yEAAuB;;GAC1B;;;;;;;;;;;;;;;;IAbD;qCAAA;;;;;;;;;;;0GAAmC;KAAA;IACnC;qCAAA;;;;;;;;;;;0GAA+C;KAAA;;;;;;;;;;"
+}
