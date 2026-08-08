@@ -48,13 +48,21 @@ export {
 function deriveKeys(seed: string) {
   const hdWallet = HDWallet.fromSeed(Buffer.from(seed, 'hex'));
   if (hdWallet.type !== 'seedOk') throw new Error('Invalid seed');
-  const result = hdWallet.hdWallet
-    .selectAccount(0)
-    .selectRoles([Roles.Zswap, Roles.NightExternal, Roles.Dust])
-    .deriveKeysAt(0);
-  if (result.type !== 'keysDerived') throw new Error('Key derivation failed');
+  
+  const zswapRes = hdWallet.hdWallet.selectAccount(0).selectRoles([Roles.Zswap]).deriveKeysAt(0);
+  const nightRes = hdWallet.hdWallet.selectAccount(0).selectRoles([Roles.NightExternal]).deriveKeysAt(0);
+  const dustRes = hdWallet.hdWallet.selectAccount(0).selectRoles([Roles.Dust]).deriveKeysAt(0);
+  
+  if (zswapRes.type !== 'keysDerived' || nightRes.type !== 'keysDerived' || dustRes.type !== 'keysDerived') {
+    throw new Error('Key derivation failed');
+  }
+  
   hdWallet.hdWallet.clear();
-  return result.keys;
+  return {
+    [Roles.Zswap]: zswapRes.keys[Roles.Zswap],
+    [Roles.NightExternal]: nightRes.keys[Roles.NightExternal],
+    [Roles.Dust]: dustRes.keys[Roles.Dust],
+  };
 }
 
 export interface WalletContext {
