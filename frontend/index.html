@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>frontend</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="error-overlay" style="color:red; font-family:monospace; padding:20px; white-space:pre-wrap;"></div>
+    <script>
+      window.onerror = function(msg, url, lineNo, columnNo, error) {
+        var string = msg.toLowerCase();
+        var substring = "script error";
+        if (string.indexOf(substring) > -1){
+          document.getElementById('error-overlay').innerText = 'Script Error: See Browser Console for Detail';
+        } else {
+          var message = [
+            'Message: ' + msg,
+            'URL: ' + url,
+            'Line: ' + lineNo,
+            'Column: ' + columnNo,
+            'Error object: ' + JSON.stringify(error)
+          ].join(' \n');
+          document.getElementById('error-overlay').innerText = message + '\n\n' + (error && error.stack ? error.stack : '');
+        }
+        return false;
+      };
+      window.addEventListener('unhandledrejection', function(event) {
+        document.getElementById('error-overlay').innerText = 'Unhandled Rejection: ' + event.reason + '\n\n' + (event.reason && event.reason.stack ? event.reason.stack : '');
+      });
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
