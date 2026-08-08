@@ -9,7 +9,7 @@
 |----------|----------------------------------|
 | Preview  | 2029da66063cbe10b5a8c88aaefde089b59eb87a2341cfb0fc3b5613da0c28b3    |
 
-*(Note: Replace the placeholder above with the contract address after you deploy it via the dApp)*
+
 
 ## What This Does
 This dApp allows users to prove they are at least 18 years old using a Zero-Knowledge Proof. Instead of submitting their birthdate or exact age to a public server or blockchain, the user inputs their age locally. The Midnight network generates a mathematical proof that the condition (`age >= 18`) is met, and only that cryptographic proof is submitted to the blockchain.
