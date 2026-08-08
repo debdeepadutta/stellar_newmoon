@@ -7,6 +7,7 @@ export function OneClickVerify() {
   const [status, setStatus] = useState<string>('');
   const [success, setSuccess] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [deployedAddress, setDeployedAddress] = useState<string>('');
 
   const handleProve = async () => {
     if (!connectedApi || !walletAddress) return;
@@ -101,7 +102,11 @@ export function OneClickVerify() {
       // If the proof fails locally (e.g. age < 18), the promise rejects immediately BEFORE the wallet prompt.
       
       let isDone = false;
-      deployPromise.then(() => { isDone = true; }).catch((e) => {
+      deployPromise.then((deployed: any) => { 
+        isDone = true; 
+        setDeployedAddress(deployed.public.contractAddress);
+        console.log("Deployed Address:", deployed.public.contractAddress);
+      }).catch((e) => {
         if (!isDone) {
           setError(e.message || 'Proof failed. Are you over 18?');
           setStatus('');
@@ -144,6 +149,12 @@ export function OneClickVerify() {
           <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>✅</div>
           <h3 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--success)' }}>Verified!</h3>
           <p style={{ marginTop: '0.5rem', color: '#6ee7b7' }}>Your zero-knowledge proof was successful!</p>
+          {deployedAddress && (
+            <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', fontSize: '0.85rem', wordBreak: 'break-all', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ color: 'var(--text-muted)', marginBottom: '0.25rem', fontSize: '0.75rem', textTransform: 'uppercase' }}>Contract Address</div>
+              <code style={{ color: '#fff' }}>{deployedAddress}</code>
+            </div>
+          )}
         </div>
       )}
 
