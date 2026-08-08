@@ -2,7 +2,7 @@
 > A privacy-preserving zero-knowledge dApp that proves you meet an age requirement without revealing your actual age.
 
 ## Live Demo
-[PASTE LIVE URL AFTER DEPLOYING FRONTEND]
+[https://stellar-newmoon-zn9z.vercel.app](https://stellar-newmoon-zn9z.vercel.app)
 
 ## Contract Address
 | Network  | Address                          |
