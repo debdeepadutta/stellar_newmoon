@@ -1,31 +1,53 @@
-# Midnight Zero-Knowledge Age Verifier
+# Midnight Age Verifier
+> A privacy-preserving zero-knowledge dApp that proves you meet an age requirement without revealing your actual age.
 
-This DApp demonstrates a privacy-preserving smart contract deployed on the **Midnight Preview Network**. 
+## Live Demo
+[PASTE LIVE URL AFTER DEPLOYING FRONTEND]
 
-## 🛡️ The Privacy Claim
-**What is proven?**
-A user can prove that they meet a minimum age requirement (e.g., they are 18 or older) established by the smart contract.
+## Contract Address
+| Network  | Address                          |
+|----------|----------------------------------|
+| Preprod  | [YOUR_CONTRACT_ADDRESS_HERE]     |
 
-**What is kept private?**
-The user's **actual age** is kept completely private. It is passed as a **private input** into the Zero-Knowledge circuit (`verify`). The circuit executes entirely locally on the user's machine, generating a cryptographic Zero-Knowledge Proof. 
-The blockchain only receives and verifies the proof—it *never* sees the actual age, nor does it execute the logic.
+*(Note: Replace the placeholder above with the contract address after you deploy it via the dApp)*
 
-## 🚀 How to Run
+## What This Does
+This dApp allows users to prove they are at least 18 years old using a Zero-Knowledge Proof. Instead of submitting their birthdate or exact age to a public server or blockchain, the user inputs their age locally. The Midnight network generates a mathematical proof that the condition (`age >= 18`) is met, and only that cryptographic proof is submitted to the blockchain.
 
-1. Ensure you have the **Lace Wallet** installed and connected to the **Midnight Preview** network.
-2. Clone this repository and run:
+## Privacy Model
+- **What is PUBLIC:** The minimum age requirement (18) and the boolean state indicating if the verification was successful.
+- **What is PRIVATE:** The user's actual age.
+- **What the user PROVES without revealing:** The user proves that their private age is greater than or equal to 18 without ever revealing the exact number.
+
+## Privacy Claim
+**On-chain observers** can see that a contract deployment and verification transaction occurred successfully, confirming the user meets the age criteria. They **cannot see** the user's actual age, which remains completely confidential, is never transmitted over the network, and is never recorded on the ledger.
+
+## Tech Stack
+Midnight network, Compact, Midnight.js SDK, React/Vite, Lace wallet
+
+## Prerequisites
+- Lace wallet installed
+- Node.js v22
+
+## Run Locally
+
+1. **Clone the repository**
    ```bash
+   git clone <your-repo-url>
+   cd mn-demo
+   ```
+
+2. **Install dependencies**
+   ```bash
+   cd frontend
    npm install
+   ```
+
+3. **Start the development server**
+   ```bash
    npm run dev
    ```
-3. Connect your wallet using the UI.
-4. **Deploy**: Enter a minimum age and deploy the contract. You will receive a Contract Address.
-5. **Verify**: Paste the contract address into the Verify section, enter your actual age (this stays private!), and click Verify. The transaction will succeed if your age is $\ge$ the minimum, without revealing your age on-chain!
+   Open `http://localhost:5173` in your browser to interact with the dApp.
 
-## Requirements Met
-- ✅ Lace wallet connect / disconnect implemented
-- ✅ Circuit called successfully from the frontend
-- ✅ Observable privacy behavior (Proving Age without showing it)
-- ✅ Contract deployed (targeting Preview Network)
-- ✅ Minimum 8 meaningful commits
-- ✅ README documenting the privacy claim
+## Demo Video
+[PLACEHOLDER — I will add the link after recording]
