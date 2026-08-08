@@ -7,7 +7,7 @@
 ## Contract Address
 | Network  | Address                          |
 |----------|----------------------------------|
-| Preprod  | [YOUR_CONTRACT_ADDRESS_HERE]     |
+| Preview  | 2029da66063cbe10b5a8c88aaefde089b59eb87a2341cfb0fc3b5613da0c28b3    |
 
 *(Note: Replace the placeholder above with the contract address after you deploy it via the dApp)*
 
