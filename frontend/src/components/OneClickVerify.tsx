@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useWallet } from '../context/WalletContext';
 
 export function OneClickVerify() {
-  const { connectedApi, walletAddress, setNetworkId } = useWallet();
+  const { connectedApi, walletAddress } = useWallet();
   const [ageInput, setAgeInput] = useState<string>('');
   const [status, setStatus] = useState<string>('');
   const [success, setSuccess] = useState<boolean>(false);
