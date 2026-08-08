@@ -1,8 +1,7 @@
 
 import { WalletProvider } from './context/WalletContext';
 import { WalletConnect } from './components/WalletConnect';
-import { DeployContract } from './components/DeployContract';
-import { VerifyAge } from './components/VerifyAge';
+import { OneClickVerify } from './components/OneClickVerify';
 import './index.css';
 
 function App() {
@@ -20,10 +19,7 @@ function App() {
         <main className="app-main">
           <div className="dashboard-grid">
             <WalletConnect />
-            <div>
-              <DeployContract />
-              <VerifyAge />
-            </div>
+            <OneClickVerify />
           </div>
         </main>
 
