@@ -3,18 +3,41 @@
 
 [![CI/CD Pipeline](https://github.com/debdeepadutta/stellar_newmoon/actions/workflows/ci.yml/badge.svg)](https://github.com/debdeepadutta/stellar_newmoon/actions/workflows/ci.yml)
 
-## Live Demo
-[https://stellar-newmoon-zn9z.vercel.app](https://stellar-newmoon-zn9z.vercel.app)
+## Level 3 Submission Requirements
 
-## Demo Video
+### CI/CD Pipeline
+- **Status:** Passing ✅
+- **Workflow File:** `.github/workflows/ci.yml`
+- **Actions Badge:** See the badge above
+
+![CI/CD Pipeline](ss/image%20copy.png)
+
+### Automated Tests
+- **Tests Passing:** 12 tests across 2 files
+- **Coverage:** UI state, wallet connection, default values, and ZK verification guards
+
+![Tests Output](ss/image.png)
+
+### Demo Video (1 Minute)
 [▶ Watch the Live Demo Recording](https://drive.google.com/file/d/1Kp8JfNEO_S2K9DEA0CZzRRbc11JrSQc4/view?usp=sharing)
+
+### Privacy Model
+See the **Privacy Model** section below for a detailed breakdown of what an observer can and cannot learn.
 
 ---
 
-## Approved Idea: Age / Eligibility Gate
+## Level 2 Submission Requirements
+
+### Live Demo (Vercel)
+[https://stellar-newmoon-zn9z.vercel.app](https://stellar-newmoon-zn9z.vercel.app)
+
+### Approved Idea: Age / Eligibility Gate
 > *Prove a threshold without revealing the underlying value.*
 
 This dApp proves that a user is at least 18 years old using a **Zero-Knowledge Proof** on the Midnight network. The user's exact age is **never** transmitted to any server, stored on any ledger, or visible to any observer — only a cryptographic proof that the condition `age ≥ 18` is satisfied is submitted to the blockchain.
+
+### Smart Contract Integration
+The dApp generates zero-knowledge proofs locally in the browser using the `age-verifier.compact` circuit.
 
 ---
 
