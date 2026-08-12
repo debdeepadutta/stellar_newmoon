@@ -97,11 +97,9 @@ export function OneClickVerify() {
         args: [BigInt(ageInput)], // pass the age directly to the ZK circuit!
       });
 
-      // As soon as the wallet prompts and signs, the transaction is submitted.
       const deployed = await deployPromise;
-      
-      setDeployedAddress(deployed.public.contractAddress);
-      console.log("Deployed Address:", deployed.public.contractAddress);
+      setDeployedAddress(deployed.deployTxData.public.contractAddress);
+      console.log("Deployed Address:", deployed.deployTxData.public.contractAddress);
       setStatus('');
       setSuccess(true);
       
