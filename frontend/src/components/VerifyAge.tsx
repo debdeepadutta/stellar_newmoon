@@ -26,7 +26,6 @@ export const VerifyAge: React.FC = () => {
         { DAppWalletProvider },
         { FetchZkConfigProvider },
         { setNetworkId },
-        AgeVerifier,
       ] = await Promise.all([
         import('@midnight-ntwrk/midnight-js-http-client-proof-provider'),
         import('@midnight-ntwrk/midnight-js-indexer-public-data-provider'),
@@ -34,7 +33,6 @@ export const VerifyAge: React.FC = () => {
         import('../providers/DAppWalletProvider'),
         import('../providers/FetchZkConfigProvider'),
         import('@midnight-ntwrk/midnight-js-network-id'),
-        import('../contracts/age-verifier/index.js'),
       ]);
 
       setStatus('Fetching wallet keys...');
@@ -58,17 +56,6 @@ export const VerifyAge: React.FC = () => {
         accountId: walletAddress,
         privateStoragePasswordProvider: () => 'midnight-dapp-password-16chars!',
       });
-
-      const proofProvider = httpClientProofProvider(proofServerUrl, zkConfigProvider);
-
-      const providers = {
-        privateStateProvider,
-        publicDataProvider,
-        zkConfigProvider,
-        proofProvider,
-        walletProvider,
-        midnightProvider: walletProvider,
-      };
 
       setStatus('Connecting to contract (not supported in this version)');
       throw new Error('Direct contract call not supported. Use 1-Click Verify instead.');
