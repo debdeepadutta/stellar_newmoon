@@ -101,24 +101,22 @@ export function OneClickVerify() {
       // We will assume success 15 seconds after this prompt!
       // If the proof fails locally (e.g. age < 18), the promise rejects immediately BEFORE the wallet prompt.
       
-      let isDone = false;
-      deployPromise.then((deployed: any) => { 
-        isDone = true; 
-        setDeployedAddress(deployed.public.contractAddress);
-        console.log("Deployed Address:", deployed.public.contractAddress);
-      }).catch((e) => {
-        if (!isDone) {
-          setError(e.message || 'Proof failed. Are you over 18?');
-          setStatus('');
-        }
+      // We use Promise.race to either catch the deployment (or its rejection) or timeout after 15s.
+      // If the wallet popup is closed, it might reject immediately or hang.
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Timeout: Transaction was not signed in time or wallet is syncing. Please try again.")), 15000);
       });
 
-      // Give them 15 seconds to sign it. Once time is up, we declare success.
-      await new Promise(resolve => setTimeout(resolve, 15000));
-      isDone = true;
-      if (!error) {
+      try {
+        const deployed = await Promise.race([deployPromise, timeoutPromise]) as any;
+        setDeployedAddress(deployed.public.contractAddress);
+        console.log("Deployed Address:", deployed.public.contractAddress);
         setStatus('');
         setSuccess(true);
+      } catch (e: any) {
+        setError(e.message || 'Proof failed or user cancelled. Are you over 18?');
+        setStatus('');
+        setSuccess(false);
       }
       
     } catch (err: any) {
