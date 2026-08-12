@@ -1,17 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import React from 'react';
 import { WalletProvider, useWallet } from '../context/WalletContext';
 import { WalletConnect } from '../components/WalletConnect';
 import { OneClickVerify } from '../components/OneClickVerify';
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
+// ── Helper ─────────────────────────────────────────────────────────────────────
 function renderWithWallet(ui: React.ReactElement) {
   return render(<WalletProvider>{ui}</WalletProvider>);
 }
 
-// ── Test 1: WalletConnect renders without wallet extension ─────────────────────
+// ── Test 1: WalletConnect renders the connect button ──────────────────────────
 describe('WalletConnect', () => {
   it('renders Connect Wallet button when no wallet is connected', () => {
     renderWithWallet(<WalletConnect />);
@@ -21,9 +20,9 @@ describe('WalletConnect', () => {
   });
 });
 
-// ── Test 2: OneClickVerify renders the prove button ───────────────────────────
+// ── Test 2: OneClickVerify shows disabled state without wallet ─────────────────
 describe('OneClickVerify - initial render', () => {
-  it('renders the Prove Age button in disabled state when wallet is not connected', () => {
+  it('renders button in disabled state when wallet is not connected', () => {
     renderWithWallet(<OneClickVerify />);
     expect(
       screen.getByRole('button', { name: /connect wallet first/i })
@@ -33,7 +32,7 @@ describe('OneClickVerify - initial render', () => {
 
 // ── Test 3: Age input field is present ───────────────────────────────────────
 describe('OneClickVerify - age input', () => {
-  it('renders an age input field', () => {
+  it('renders a number input field for private age entry', () => {
     renderWithWallet(<OneClickVerify />);
     const input = screen.getByPlaceholderText(/e\.g\. 21/i);
     expect(input).toBeInTheDocument();
@@ -41,13 +40,18 @@ describe('OneClickVerify - age input', () => {
   });
 });
 
-// ── Test 4: WalletProvider context provides correct default values ─────────────
+// ── Test 4: WalletProvider context default values ─────────────────────────────
 describe('WalletContext', () => {
   it('provides null connectedApi and walletAddress by default', () => {
-    let ctx: ReturnType<typeof useWallet> | null = null;
+    let connectedApi: unknown = 'not-checked';
+    let walletAddress: unknown = 'not-checked';
+    let isConnecting: unknown = 'not-checked';
 
     function Probe() {
-      ctx = useWallet();
+      const ctx = useWallet();
+      connectedApi = ctx.connectedApi;
+      walletAddress = ctx.walletAddress;
+      isConnecting = ctx.isConnecting;
       return null;
     }
 
@@ -57,67 +61,23 @@ describe('WalletContext', () => {
       </WalletProvider>
     );
 
-    expect(ctx!.connectedApi).toBeNull();
-    expect(ctx!.walletAddress).toBeNull();
-    expect(ctx!.isConnecting).toBe(false);
+    expect(connectedApi).toBeNull();
+    expect(walletAddress).toBeNull();
+    expect(isConnecting).toBe(false);
   });
 });
 
-// ── Test 5: Error shown when age is missing before proving ────────────────────
-describe('OneClickVerify - validation', () => {
-  it('shows an error when trying to prove with an empty age input', async () => {
-    // Provide a mock connected wallet API so the button is enabled
-    const mockApi = {
-      getShieldedAddresses: vi.fn().mockResolvedValue({
-        shieldedCoinPublicKey: 'pk',
-        shieldedEncryptionPublicKey: 'epk',
-      }),
-      getConfiguration: vi.fn().mockResolvedValue({
-        networkId: 'preview',
-        indexerUri: 'http://indexer',
-        indexerWsUri: 'ws://indexer',
-      }),
-      balanceUnsealedTransaction: vi.fn(),
-      submitTransaction: vi.fn(),
-    };
-
-    // Render with mock wallet injected via context override
-    function MockedWalletProvider({ children }: { children: React.ReactNode }) {
-      const [, setForce] = React.useState(0);
-      // Provide a context that has a connected API so button is enabled
-      const ctx = {
-        connectedApi: mockApi as any,
-        walletAddress: 'addr1test',
-        networkId: 'preview',
-        balance: '5000',
-        isConnecting: false,
-        error: null,
-        detectedWallets: ['mnLace'],
-        connectWallet: async () => {},
-        disconnectWallet: () => setForce(n => n + 1),
-      };
-      const WalletContext = React.createContext<any>(undefined);
-      // eslint-disable-next-line react/display-name
-      const WalletContextModule = require('../context/WalletContext');
-      return (
-        <WalletContextModule.WalletProvider>
-          {children}
-        </WalletContextModule.WalletProvider>
-      );
-    }
-
-    // Simple render — wallet not connected, age input empty
+// ── Test 5: Button is disabled without wallet ─────────────────────────────────
+describe('OneClickVerify - button guard', () => {
+  it('disables the prove button when no wallet is connected', () => {
     renderWithWallet(<OneClickVerify />);
-    // The button says "Connect Wallet First" when not connected
-    // That's our validation — the UI correctly prevents proving without a wallet
-    const button = screen.getByRole('button');
-    expect(button).toBeDisabled();
+    expect(screen.getByRole('button')).toBeDisabled();
   });
 });
 
-// ── Test 6 (bonus): App renders header ────────────────────────────────────────
-describe('App structure', () => {
-  it('renders the age verification heading', () => {
+// ── Test 6: Heading is rendered ───────────────────────────────────────────────
+describe('OneClickVerify - content', () => {
+  it('renders the Age Verification heading', () => {
     renderWithWallet(<OneClickVerify />);
     expect(screen.getByText('1-Click Age Verification')).toBeInTheDocument();
   });
