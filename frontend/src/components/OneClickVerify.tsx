@@ -98,37 +98,16 @@ export function OneClickVerify() {
       });
 
       // As soon as the wallet prompts and signs, the transaction is submitted.
-      // We will assume success 15 seconds after this prompt!
-      // If the proof fails locally (e.g. age < 18), the promise rejects immediately BEFORE the wallet prompt.
+      const deployed = await deployPromise;
       
-      let hasError = false;
-      let isDone = false;
-
-      deployPromise.then((deployed: any) => { 
-        isDone = true; 
-        setDeployedAddress(deployed.public.contractAddress);
-        console.log("Deployed Address:", deployed.public.contractAddress);
-        setStatus('');
-        setSuccess(true);
-      }).catch((e) => {
-        hasError = true;
-        isDone = true;
-        setError(e.message || 'Proof failed or user cancelled.');
-        setStatus('');
-        setSuccess(false);
-      });
-
-      // We wait 15 seconds for the wallet to sign.
-      // If it hasn't errored out and hasn't explicitly finished, we assume it's hanging on indexer polling (which means success).
-      await new Promise(resolve => setTimeout(resolve, 15000));
-      if (!hasError && !isDone) {
-        setStatus('');
-        setSuccess(true);
-      }
+      setDeployedAddress(deployed.public.contractAddress);
+      console.log("Deployed Address:", deployed.public.contractAddress);
+      setStatus('');
+      setSuccess(true);
       
     } catch (err: any) {
       console.error('Error:', err);
-      setError(err.message || 'Verification failed');
+      setError(err.message || 'Verification failed. Did you close the wallet prompt?');
       setStatus('');
     }
   };
