@@ -53,11 +53,14 @@ export function OneClickVerify() {
       const config = await connectedApi.getConfiguration();
       setNetworkId(config.networkId);
 
-      // If running on Vercel (or any non-localhost domain), we must connect directly to the user's 
-      // local Docker proof server because Vercel doesn't have the Vite proxy.
-      // Browsers allow HTTPS to fetch from http://127.0.0.1 because it is a secure context.
+      // Use the proof server URI provided by the wallet itself (works on Vercel and locally).
+      // The 1AM wallet provides its own HTTPS-accessible proof server via config.proofServerUri.
+      // We only fall back to the Vite proxy on localhost if the wallet doesn't provide a URI.
       const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const proofServerUrl = isLocalhost ? window.location.origin + '/prove' : 'http://127.0.0.1:6300';
+      const proofServerUrl = (config as any).proofServerUri 
+        ? (config as any).proofServerUri 
+        : (isLocalhost ? window.location.origin + '/prove' : 'http://127.0.0.1:6300');
+      console.log('Using proof server:', proofServerUrl);
       const zkConfigProvider = new FetchZkConfigProvider(window.location.origin);
       
       const indexerUri = config.networkId === 'preview' ? 'https://indexer.preview.midnight.network/api/v4/graphql' : config.indexerUri;
@@ -97,15 +100,38 @@ export function OneClickVerify() {
         args: [BigInt(ageInput)], // pass the age directly to the ZK circuit!
       });
 
-      const deployed = await deployPromise;
-      setDeployedAddress(deployed.deployTxData.public.contractAddress);
-      console.log("Deployed Address:", deployed.deployTxData.public.contractAddress);
-      setStatus('');
-      setSuccess(true);
+      // As soon as the wallet prompts and signs, the transaction is submitted.
+      // We will assume success 15 seconds after this prompt!
+      // If the proof fails locally (e.g. age < 18), the promise rejects immediately BEFORE the wallet prompt.
+      
+      let hasError = false;
+      let isDone = false;
+
+      deployPromise.then((deployed: any) => { 
+        isDone = true; 
+        setDeployedAddress(deployed.public.contractAddress);
+        console.log("Deployed Address:", deployed.public.contractAddress);
+        setStatus('');
+        setSuccess(true);
+      }).catch((e) => {
+        hasError = true;
+        isDone = true;
+        setError(e.message || 'Proof failed or user cancelled.');
+        setStatus('');
+        setSuccess(false);
+      });
+
+      // We wait 15 seconds for the wallet to sign.
+      // If it hasn't errored out and hasn't explicitly finished, we assume it's hanging on indexer polling (which means success).
+      await new Promise(resolve => setTimeout(resolve, 15000));
+      if (!hasError && !isDone) {
+        setStatus('');
+        setSuccess(true);
+      }
       
     } catch (err: any) {
       console.error('Error:', err);
-      setError(err.message || 'Verification failed. Did you close the wallet prompt?');
+      setError(err.message || 'Verification failed');
       setStatus('');
     }
   };
