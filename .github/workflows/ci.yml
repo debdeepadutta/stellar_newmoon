@@ -8,13 +8,14 @@ on:
 
 jobs:
   build-and-test:
+    name: Build & Test (Age/Eligibility Gate dApp)
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Setup Node.js
+    - name: Setup Node.js 22
       uses: actions/setup-node@v4
       with:
         node-version: '22'
@@ -25,10 +26,21 @@ jobs:
       working-directory: ./frontend
       run: npm ci
 
-    - name: Run Frontend Tests
-      working-directory: ./frontend
-      run: npm run test
-
     - name: Typecheck Frontend
       working-directory: ./frontend
       run: npx tsc --noEmit
+
+    - name: Run Tests (minimum 5 required)
+      working-directory: ./frontend
+      run: npm run test
+
+    - name: Build Frontend for Production
+      working-directory: ./frontend
+      run: npm run build
+
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-dist
+        path: frontend/dist/
+        retention-days: 7
