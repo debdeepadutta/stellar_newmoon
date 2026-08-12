@@ -20,8 +20,7 @@ describe('OneClickVerify Component', () => {
       walletAddress: null,
       isConnecting: false,
       error: null,
-      connect: vi.fn(),
-    });
+    } as any);
 
     render(<OneClickVerify />);
 
@@ -41,8 +40,7 @@ describe('OneClickVerify Component', () => {
       walletAddress: 'mock-address',
       isConnecting: false,
       error: null,
-      connect: vi.fn(),
-    });
+    } as any);
 
     render(<OneClickVerify />);
 
@@ -57,8 +55,7 @@ describe('OneClickVerify Component', () => {
       walletAddress: 'mock-address',
       isConnecting: false,
       error: null,
-      connect: vi.fn(),
-    });
+    } as any);
 
     render(<OneClickVerify />);
 
@@ -88,8 +85,7 @@ describe('OneClickVerify Component', () => {
       walletAddress: 'mock-address',
       isConnecting: false,
       error: null,
-      connect: vi.fn(),
-    });
+    } as any);
 
     render(<OneClickVerify />);
 
@@ -110,8 +106,7 @@ describe('OneClickVerify Component', () => {
       walletAddress: 'mock-address',
       isConnecting: false,
       error: null,
-      connect: vi.fn(),
-    });
+    } as any);
 
     render(<OneClickVerify />);
 
@@ -139,8 +134,7 @@ describe('OneClickVerify Component', () => {
       walletAddress: 'mock-address',
       isConnecting: false,
       error: null,
-      connect: vi.fn(),
-    });
+    } as any);
 
     render(<OneClickVerify />);
 
