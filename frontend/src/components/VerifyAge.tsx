@@ -26,7 +26,6 @@ export const VerifyAge: React.FC = () => {
         { DAppWalletProvider },
         { FetchZkConfigProvider },
         { setNetworkId },
-        { Contract },
         AgeVerifier,
       ] = await Promise.all([
         import('@midnight-ntwrk/midnight-js-http-client-proof-provider'),
@@ -35,7 +34,6 @@ export const VerifyAge: React.FC = () => {
         import('../providers/DAppWalletProvider'),
         import('../providers/FetchZkConfigProvider'),
         import('@midnight-ntwrk/midnight-js-network-id'),
-        import('@midnight-ntwrk/midnight-js-contracts'),
         import('../contracts/age-verifier/index.js'),
       ]);
 
@@ -72,23 +70,9 @@ export const VerifyAge: React.FC = () => {
         midnightProvider: walletProvider,
       };
 
-      setStatus('Connecting to contract...');
-      const contract = await Contract.build(
-        providers as any,
-        contractAddress,
-        AgeVerifier.Contract,
-        AgeVerifier.createContractString('verify') // This must match the circuit name you want to call
-      );
+      setStatus('Connecting to contract (not supported in this version)');
+      throw new Error('Direct contract call not supported. Use 1-Click Verify instead.');
 
-      setStatus('Proving age... (Your age is kept private!)');
-      // Calling the verify circuit with the private input
-      const tx = await contract.callTx.verify(BigInt(myAgeInput));
-      
-      setStatus('Waiting for wallet approval...');
-      await walletProvider.submitTx(tx);
-      
-      setStatus('');
-      setSuccess(true);
     } catch (err: any) {
       console.error('Verification error:', err);
       setError(err.message || String(err));

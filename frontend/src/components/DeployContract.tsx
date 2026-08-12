@@ -5,7 +5,6 @@ export const DeployContract: React.FC = () => {
   const { connectedApi, walletAddress } = useWallet();
   const [deploying, setDeploying] = useState(false);
   const [contractAddress, setContractAddress] = useState<string | null>(null);
-  const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string>('');
   const [minAgeInput, setMinAgeInput] = useState<string>('18');
@@ -16,7 +15,6 @@ export const DeployContract: React.FC = () => {
     setDeploying(true);
     setError(null);
     setContractAddress(null);
-    setTxHash(null);
     setStatus('Loading SDK modules...');
 
     try {
