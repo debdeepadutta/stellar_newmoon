@@ -49,5 +49,14 @@ Midnight network, Compact, Midnight.js SDK, React/Vite, Lace wallet
    ```
    Open `http://localhost:5173` in your browser to interact with the dApp.
 
+## Tests and CI/CD
+This project includes automated tests for the frontend that mock wallet interactions.
+To run tests locally:
+```bash
+cd frontend
+npm run test
+```
+Continuous Integration is configured via GitHub Actions. On every push to `main`, the `.github/workflows/ci.yml` pipeline automatically installs dependencies, checks types, and runs all application tests.
+
 ## Demo Video
 [Watch the Live Demo Recording](https://drive.google.com/file/d/1Kp8JfNEO_S2K9DEA0CZzRRbc11JrSQc4/view?usp=sharing)
