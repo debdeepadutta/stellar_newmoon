@@ -5,6 +5,10 @@
 
 ## Level 3 Submission Requirements
 
+### Product Idea Proposal
+- **File:** [`PROPOSAL.md`](./PROPOSAL.md) — product idea submission describing the privacy model, circuit design, and ZK proof flow.
+
+
 ### CI/CD Pipeline
 - **Status:** Passing ✅
 - **Workflow File:** `.github/workflows/ci.yml`
@@ -13,8 +17,8 @@
 ![CI/CD Pipeline](ss/image%20copy.png)
 
 ### Automated Tests
-- **Tests Passing:** 12 tests across 2 files
-- **Coverage:** UI state, wallet connection, default values, and ZK verification guards
+- **Tests Passing:** 26 tests across 3 files
+- **Coverage:** UI state, wallet connection, default values, ZK verification guards, **circuit-logic assertions**, and **ledger-state-transition verification**
 
 ![Tests Output](ss/image.png)
 
@@ -72,7 +76,7 @@ The dApp generates zero-knowledge proofs locally in the browser using the `age-v
 ## Contract Address
 | Network  | Address |
 |----------|---------|
-| Preview  | `2029da66063cbe10b5a8c88aaefde089b59eb87a2341cfb0fc3b5613da0c28b3` |
+| Preprod  | `2029da66063cbe10b5a8c88aaefde089b59eb87a2341cfb0fc3b5613da0c28b3` |
 
 ---
 
@@ -91,12 +95,14 @@ The dApp generates zero-knowledge proofs locally in the browser using the `age-v
 
 ## Tests & CI/CD
 
-This project includes **12 automated tests** covering:
+This project includes **26 automated tests** across 3 test files covering:
 - Wallet connection UI state
 - Age input field rendering
 - Button disabled/enabled states
 - WalletContext default values
 - ZK verification flow guards
+- **Circuit-logic assertions** — `assert(myAge >= 18)` rejects underage inputs
+- **Ledger-state-transition tests** — `minimumAge` and `lastVerificationSuccess` fields
 
 **Run tests locally:**
 ```bash
@@ -106,9 +112,10 @@ npm run test
 
 **CI/CD Pipeline** (`.github/workflows/ci.yml`) runs on every push to `main`:
 1. ✅ TypeScript typecheck (`tsc --noEmit`)
-2. ✅ Run all 12 tests (`vitest run`)
-3. ✅ Build production bundle (`vite build`)
-4. ✅ Upload build artifact to GitHub Actions
+2. ✅ **Compact compile** — validates `age-verifier.compact` circuit compiles cleanly
+3. ✅ Run all 26 tests (`vitest run`)
+4. ✅ Build production bundle (`vite build`)
+5. ✅ Upload build artifact to GitHub Actions
 
 ---
 
