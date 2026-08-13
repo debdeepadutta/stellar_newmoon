@@ -21,11 +21,15 @@ jobs:
       with:
         node-version: '22'
 
+    - name: Install Frontend Dependencies (needed for compact-runtime resolution)
+      working-directory: ./frontend
+      run: npm ci
+
     - name: Install compactc via Midnight npm package
       run: npm install -g @midnight-ntwrk/compact-compiler || true
 
-    # Validate the circuit with compactc if available, otherwise use
-    # the JS compiled output as proof that the source compiled correctly.
+    # Validate the circuit with compactc if available, otherwise verify the
+    # pre-compiled JS artefacts (which include the output of a prior compile).
     - name: Compile age-verifier.compact (ZK circuit validation)
       run: |
         if command -v compactc &> /dev/null; then
@@ -33,12 +37,14 @@ jobs:
           compactc contracts/age-verifier.compact --output /tmp/compact-out
         else
           echo "compactc not available in CI environment — verifying pre-compiled artefacts"
-          # Verify that the compiled JS output is present and the source is valid
+
+          # 1. Confirm source and compiled files exist
           test -f contracts/age-verifier.compact
           test -f frontend/src/contracts/age-verifier/index.js
+
+          # 2. Validate Compact source structure (runs from repo root — only uses 'fs')
           node -e "
             const src = require('fs').readFileSync('contracts/age-verifier.compact', 'utf8');
-            // Verify key structural elements of the Compact source
             if (!src.includes('pragma language_version')) throw new Error('Missing pragma');
             if (!src.includes('export ledger minimumAge')) throw new Error('Missing ledger minimumAge');
             if (!src.includes('export ledger lastVerificationSuccess')) throw new Error('Missing ledger lastVerificationSuccess');
@@ -46,9 +52,11 @@ jobs:
             if (!src.includes('export circuit verify')) throw new Error('Missing verify circuit');
             console.log('Compact source validated: all required elements present');
           "
-          node -e "
-            // Verify the compiled JS contract is loadable and has correct exports
-            const m = require('./frontend/src/contracts/age-verifier/index.js');
+
+          # 3. Validate compiled JS contract — must run from frontend/ so that
+          #    @midnight-ntwrk/compact-runtime resolves via frontend/node_modules
+          cd frontend && node -e "
+            const m = require('./src/contracts/age-verifier/index.js');
             if (typeof m.Contract !== 'function') throw new Error('Contract class missing');
             if (typeof m.ledger !== 'function') throw new Error('ledger function missing');
             const c = new m.Contract({});
@@ -59,8 +67,10 @@ jobs:
             if (ledger.lastVerificationSuccess !== true) throw new Error('lastVerificationSuccess should be true');
             console.log('Compiled circuit validated: ledger state transitions correct');
           "
+
           echo "Circuit compilation verified via pre-compiled artefacts ✓"
         fi
+
 
   # ── Job 2: Build & Test — frontend ────────────────────────────────────────
   build-and-test:
