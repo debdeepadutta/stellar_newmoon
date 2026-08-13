@@ -27,12 +27,19 @@ import { Contract, ledger } from '../contracts/age-verifier/index.js';
 
 /**
  * Minimal constructor context accepted by the compiled Compact contract.
- * The coinPublicKey is a 32-byte zero buffer — fine for unit tests that
- * never submit to a real proof server.
+ * Cast to `any` so the test helper stays decoupled from SDK internal type
+ * changes — the runtime JS only inspects `coinPublicKey`, so the other fields
+ * are structurally required by TypeScript but ignored at runtime.
  */
-function makeCtx() {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function makeCtx(): any {
   return {
-    initialZswapLocalState: { coinPublicKey: new Uint8Array(32) },
+    initialZswapLocalState: {
+      coinPublicKey: new Uint8Array(32),
+      currentIndex: 0n,
+      inputs: [],
+      outputs: [],
+    },
     initialPrivateState: {},
   };
 }
@@ -45,6 +52,7 @@ function buildState(age: bigint) {
   const contract = new Contract({});
   return contract.initialState(makeCtx(), age);
 }
+
 
 // ─── 1. Circuit-Logic Tests ───────────────────────────────────────────────────
 
