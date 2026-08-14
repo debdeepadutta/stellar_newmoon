@@ -77,7 +77,7 @@ The dApp generates zero-knowledge proofs locally in the browser using the `age-v
 | Network  | Address |
 |----------|---------|
 | Preprod  | `2029da66063cbe10b5a8c88aaefde089b59eb87a2341cfb0fc3b5613da0c28b3` |
-| Preview  | '3b477afdd03085630c0afca689ba0cd5fab475bcfd9e021f47e9c0e8699164ce' |
+| Preview  | `3b477afdd03085630c0afca689ba0cd5fab475bcfd9e021f47e9c0e8699164ce` |
 ---
 
 ## Tech Stack
