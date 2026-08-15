@@ -63,8 +63,8 @@ export function OneClickVerify() {
       console.log('Using proof server:', proofServerUrl);
       const zkConfigProvider = new FetchZkConfigProvider(window.location.origin);
       
-      const indexerUri = config.networkId === 'preview' ? 'https://indexer.preview.midnight.network/api/v4/graphql' : config.indexerUri;
-      const indexerWsUri = config.networkId === 'preview' ? 'wss://indexer.preview.midnight.network/api/v4/graphql/ws' : config.indexerWsUri;
+      const indexerUri = config.networkId === 'preprod' ? 'https://indexer.preprod.midnight.network/api/v4/graphql' : config.indexerUri;
+      const indexerWsUri = config.networkId === 'preprod' ? 'wss://indexer.preprod.midnight.network/api/v4/graphql/ws' : config.indexerWsUri;
       
       const publicDataProvider = indexerPublicDataProvider(indexerUri, indexerWsUri);
 

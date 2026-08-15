@@ -77,13 +77,13 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       console.log(`Connecting to wallet: "${key}"`);
 
-      // Try connecting to testnet first, fallback to preview
+      // Try connecting to testnet first, fallback to preprod
       let api: ConnectedAPI;
       try {
         api = await walletApi.connect('testnet');
       } catch (err) {
-        console.log('Failed to connect to testnet, trying preview...');
-        api = await walletApi.connect('preview');
+        console.log('Failed to connect to testnet, trying preprod...');
+        api = await walletApi.connect('preprod');
       }
       setConnectedApi(api);
 

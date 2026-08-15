@@ -74,7 +74,7 @@ describe('OneClickVerify Component', () => {
         shieldedEncryptionPublicKey: 'mock-encryption-key',
       }),
       getConfiguration: vi.fn().mockResolvedValue({
-        networkId: 'preview',
+        networkId: 'preprod',
         indexerUri: 'mock-indexer-uri',
         indexerWsUri: 'mock-indexer-ws-uri',
       }),
@@ -123,7 +123,7 @@ describe('OneClickVerify Component', () => {
         shieldedEncryptionPublicKey: 'mock-encryption-key',
       }),
       getConfiguration: vi.fn().mockResolvedValue({
-        networkId: 'preview',
+        networkId: 'preprod',
         indexerUri: 'mock-indexer-uri',
         indexerWsUri: 'mock-indexer-ws-uri',
       }),
