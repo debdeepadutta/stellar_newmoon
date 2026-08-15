@@ -14,7 +14,7 @@
 - **Workflow File:** `.github/workflows/ci.yml`
 - **Actions Badge:** See the badge above
 
-![CI/CD Pipeline](ss/image%20copy.png)
+![CI/CD Pipeline](ss/image1.png)
 
 ### Automated Tests
 - **Tests Passing:** 26 tests across 3 files
@@ -76,7 +76,7 @@ The dApp generates zero-knowledge proofs locally in the browser using the `age-v
 ## Contract Address
 | Network  | Address |
 |----------|---------|
-| Preprod  | `2029da66063cbe10b5a8c88aaefde089b59eb87a2341cfb0fc3b5613da0c28b3` |
+| Preprod  | `37dfe9e6d194b672e151acafbcc0bb4918f0b49344666a6aae2ab2f96ec773ed` |
 | Preview  | `3b477afdd03085630c0afca689ba0cd5fab475bcfd9e021f47e9c0e8699164ce` |
 ---
 
