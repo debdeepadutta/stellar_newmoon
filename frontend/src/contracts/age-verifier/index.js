@@ -247,4 +247,4 @@ export class Contract {
   };
 }
 
-export const contractReferenceLocations = { tag: 'publicLedgerArray', indices: undefined };
+export const contractReferenceLocations = { tag: 'publicLedgerArray', indices: {} };
