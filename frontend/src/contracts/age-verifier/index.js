@@ -248,16 +248,14 @@ export class Contract {
 
   impureCircuits = {
     verify: this.circuits.verify,
-    revokeVerification: this.circuits.revokeVerification,
-    isVerified: this.circuits.isVerified,
   };
 
   provableCircuits = {
     verify: this.circuits.verify,
-    revokeVerification: this.circuits.revokeVerification,
-    isVerified: this.circuits.isVerified,
   };
 }
 
-export const pureCircuits = {};
+export const pureCircuits = {
+  isVerified: Contract.prototype?.circuits?.isVerified || function() {}
+};
 export const contractReferenceLocations = { tag: 'publicLedgerArray', indices: {} };

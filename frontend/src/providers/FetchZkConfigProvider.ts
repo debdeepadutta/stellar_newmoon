@@ -9,8 +9,14 @@ export class FetchZkConfigProvider<K extends string> extends ZKConfigProvider<K>
     this.baseUrl = baseUrl;
   }
 
+  private resolveFile(circuitId: string, ext: string): string {
+    const name = circuitId.includes('#') ? circuitId.split('#')[1] : circuitId;
+    return `${this.baseUrl}/${name}.${ext}`;
+  }
+
   async getZKIR(circuitId: K): Promise<ZKIR> {
-    const response = await fetch(`${this.baseUrl}/${circuitId}.bzkir`);
+    const url = this.resolveFile(circuitId, 'bzkir');
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch ZKIR for ${circuitId}: ${response.statusText}`);
     }
@@ -19,7 +25,8 @@ export class FetchZkConfigProvider<K extends string> extends ZKConfigProvider<K>
   }
 
   async getProverKey(circuitId: K): Promise<ProverKey> {
-    const response = await fetch(`${this.baseUrl}/${circuitId}.prover`);
+    const url = this.resolveFile(circuitId, 'prover');
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch prover key for ${circuitId}: ${response.statusText}`);
     }
@@ -28,7 +35,8 @@ export class FetchZkConfigProvider<K extends string> extends ZKConfigProvider<K>
   }
 
   async getVerifierKey(circuitId: K): Promise<VerifierKey> {
-    const response = await fetch(`${this.baseUrl}/${circuitId}.verifier`);
+    const url = this.resolveFile(circuitId, 'verifier');
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch verifier key for ${circuitId}: ${response.statusText}`);
     }
