@@ -74,7 +74,12 @@ export class Contract {
       publicTranscript: [],
       privateTranscript: [],
     };
-    const ctx = { ...context, gasCost: __compactRuntime.emptyRunningCost() };
+    const ctx = { 
+      ...context, 
+      currentZswapLocalState: context.currentZswapLocalState ?? { coinPublicKey: context.initialZswapLocalState?.coinPublicKey },
+      currentPrivateState: context.currentPrivateState ?? context.initialPrivateState,
+      gasCost: __compactRuntime.emptyRunningCost() 
+    };
 
     // Initialise minimumAge slot (index 0) in the state
     try {
