@@ -29,60 +29,42 @@ export type CircuitContext<PS = AgeVerifierPrivateState> =
 export interface CircuitResults<R, PS = AgeVerifierPrivateState> {
   result: R;
   context: CircuitContext<PS>;
-  proofData: __compactRuntime.PartialProofData;
+  proofData: any;
   gasCost: __compactRuntime.RunningCost;
 }
 
 // ── Contract ──────────────────────────────────────────────────────────────────
-export declare class Contract<W extends Partial<AgeVerifierWitnesses> = AgeVerifierWitnesses> {
+export type Witnesses<PS> = AgeVerifierWitnesses;
+
+export declare class Contract<PS = any, W extends Partial<AgeVerifierWitnesses> = AgeVerifierWitnesses> {
   readonly witnesses: W;
 
   constructor(witnesses: W);
 
-  /**
-   * Deploys the contract with a minimum age threshold.
-   * @param threshold Must be >= 18; stored as `minimumAge` in the ledger.
-   */
   initialState(
-    context: CircuitContext<AgeVerifierPrivateState>,
+    context: __compactRuntime.ConstructorContext<PS>,
     threshold: bigint,
-  ): {
-    currentContractState: __compactRuntime.ContractState;
-    currentPrivateState: AgeVerifierPrivateState;
-    currentZswapLocalState: unknown;
-    proofData: __compactRuntime.PartialProofData;
-    gasCost: __compactRuntime.RunningCost;
-  };
+  ): __compactRuntime.ConstructorResult<PS>;
 
   circuits: {
-    /**
-     * Proves age >= minimumAge (and 0 < age < 150) privately.
-     * Sets verifications[getUserId()] = true in the ledger.
-     * @param myAge Caller's private age — never written on-chain.
-     */
     verify: (
-      context: CircuitContext<AgeVerifierPrivateState>,
+      context: CircuitContext<PS>,
       myAge: bigint,
-    ) => CircuitResults<[]>;
+    ) => CircuitResults<[], PS>;
 
-    /**
-     * Revokes the caller's own prior verification.
-     * Sets verifications[getUserId()] = false.
-     */
     revokeVerification: (
-      context: CircuitContext<AgeVerifierPrivateState>,
-    ) => CircuitResults<[]>;
+      context: CircuitContext<PS>,
+    ) => CircuitResults<[], PS>;
 
-    /**
-     * Read-only query — returns current verification status for any userId.
-     * Does not require private input.
-     * @param userId The 32-byte identity commitment to query.
-     */
     isVerified: (
-      context: CircuitContext<AgeVerifierPrivateState>,
+      context: CircuitContext<PS>,
       userId: Uint8Array,
-    ) => CircuitResults<[boolean]>;
+    ) => CircuitResults<[boolean], PS>;
   };
+
+  // Required by CompiledContract.make
+  impureCircuits: this['circuits'];
+  provableCircuits: this['circuits'];
 }
 
 // ── ledger() helper ───────────────────────────────────────────────────────────
