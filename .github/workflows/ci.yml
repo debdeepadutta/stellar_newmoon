@@ -48,8 +48,9 @@ jobs:
             if (!src.includes('pragma language_version')) throw new Error('Missing pragma');
             if (!src.includes('export ledger minimumAge')) throw new Error('Missing ledger minimumAge');
             if (!src.includes('export ledger lastVerificationSuccess')) throw new Error('Missing ledger lastVerificationSuccess');
-            if (!src.includes('assert(myAge >= 18')) throw new Error('Missing age assertion');
             if (!src.includes('export circuit verify')) throw new Error('Missing verify circuit');
+            if (!src.includes('assert(myAge >= minimumAge')) throw new Error('Missing per-call age assertion in verify()');
+            if (src.includes('assert(myAge >= 18')) throw new Error('Hardcoded age check must be in verify(), not constructor');
             console.log('Compact source validated: all required elements present');
           "
 
@@ -61,10 +62,13 @@ jobs:
             if (typeof m.ledger !== 'function') throw new Error('ledger function missing');
             const c = new m.Contract({});
             const ctx = { initialZswapLocalState: { coinPublicKey: new Uint8Array(32) }, initialPrivateState: {} };
+            // Constructor takes threshold (25n) — no age check at deploy time
             const result = c.initialState(ctx, 25n);
             const ledger = m.ledger(result.currentContractState.data);
-            if (ledger.minimumAge !== 18n) throw new Error('minimumAge should be 18n');
-            if (ledger.lastVerificationSuccess !== true) throw new Error('lastVerificationSuccess should be true');
+            // minimumAge must equal the threshold we passed (25n), not hardcoded 18n
+            if (ledger.minimumAge !== 25n) throw new Error('minimumAge should equal threshold 25n, got ' + ledger.minimumAge);
+            // lastVerificationSuccess starts false — only verify() sets it true
+            if (ledger.lastVerificationSuccess !== false) throw new Error('lastVerificationSuccess should be false before any verify() call');
             console.log('Compiled circuit validated: ledger state transitions correct');
           "
 
