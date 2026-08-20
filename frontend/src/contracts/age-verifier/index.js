@@ -78,6 +78,7 @@ export class Contract {
     const state = new __compactRuntime.ContractState();
     const stateValue = __compactRuntime.StateValue.newArray();
     state.data = new __compactRuntime.ChargedState(stateValue);
+    state.setOperation('verify', new __compactRuntime.ContractOperation());
 
     const coinPubKey = context.initialZswapLocalState?.coinPublicKey ?? context.currentZswapLocalState?.coinPublicKey;
     const initPrivState = context.initialPrivateState ?? context.currentPrivateState;
