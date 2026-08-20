@@ -74,11 +74,24 @@ export class Contract {
       publicTranscript: [],
       privateTranscript: [],
     };
-    const ctx = { 
-      ...context, 
-      currentZswapLocalState: context.currentZswapLocalState ?? { coinPublicKey: context.initialZswapLocalState?.coinPublicKey },
-      currentPrivateState: context.currentPrivateState ?? context.initialPrivateState,
-      gasCost: __compactRuntime.emptyRunningCost() 
+
+    const state = new __compactRuntime.ContractState();
+    const stateValue = __compactRuntime.StateValue.newArray();
+    state.data = new __compactRuntime.ChargedState(stateValue);
+
+    const coinPubKey = context.initialZswapLocalState?.coinPublicKey ?? context.currentZswapLocalState?.coinPublicKey;
+    const initPrivState = context.initialPrivateState ?? context.currentPrivateState;
+
+    const circuitCtx = __compactRuntime.createCircuitContext(
+      __compactRuntime.dummyContractAddress(),
+      coinPubKey,
+      state.data,
+      initPrivState
+    );
+
+    const ctx = {
+      ...circuitCtx,
+      gasCost: __compactRuntime.emptyRunningCost()
     };
 
     // Initialise minimumAge slot (index 0) in the state
@@ -112,7 +125,6 @@ export class Contract {
     // Initialise empty verifications map in private state
     _setVerifications(ctx, new Map());
 
-    const state = new __compactRuntime.ContractState();
     state.data = new __compactRuntime.ChargedState(ctx.currentQueryContext.state.state);
     
     // Store globally for tests to avoid WASM boundary property stripping
