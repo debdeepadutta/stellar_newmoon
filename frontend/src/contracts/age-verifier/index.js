@@ -60,16 +60,24 @@ export class Contract {
     this.witnesses = witnesses_0;
     this.circuits = {
       verify: (...args_1) => {
-        if (args_1.length !== 1) {
-          throw new __compactRuntime.CompactError(`verify: expected 1 argument (as invoked from Typescript), received ${args_1.length}`);
+        if (args_1.length !== 2) {
+          throw new __compactRuntime.CompactError(`verify: expected 2 arguments (as invoked from Typescript), received ${args_1.length}`);
         }
         const contextOrig_0 = args_1[0];
+        const myAge_0 = args_1[1];
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('verify',
                                      'argument 1 (as invoked from Typescript)',
-                                     'age-verifier.compact line 14 char 1',
+                                     'age-verifier.compact line 11 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
+        }
+        if (!(typeof(myAge_0) === 'bigint' && myAge_0 >= 0n && myAge_0 <= 4294967295n)) {
+          __compactRuntime.typeError('verify',
+                                     'argument 2 (as invoked from Typescript)',
+                                     'age-verifier.compact line 11 char 1',
+                                     'Uint<0..4294967296>',
+                                     myAge_0)
         }
         const context = { ...contextOrig_0, gasCost: __compactRuntime.emptyRunningCost() };
         const partialProofData = {
@@ -78,7 +86,7 @@ export class Contract {
           publicTranscript: [],
           privateTranscriptOutputs: []
         };
-        const result_0 = this._verify_0(context, partialProofData);
+        const result_0 = this._verify_0(context, partialProofData, myAge_0);
         partialProofData.output = { value: [], alignment: [] };
         return { result: result_0, context: context, proofData: partialProofData, gasCost: context.gasCost };
       }
@@ -91,7 +99,7 @@ export class Contract {
       throw new __compactRuntime.CompactError(`Contract state constructor: expected 2 arguments (as invoked from Typescript), received ${args_0.length}`);
     }
     const constructorContext_0 = args_0[0];
-    const myAge_0 = args_0[1];
+    const threshold_0 = args_0[1];
     if (typeof(constructorContext_0) !== 'object') {
       throw new __compactRuntime.CompactError(`Contract state constructor: expected 'constructorContext' in argument 1 (as invoked from Typescript) to be an object`);
     }
@@ -101,12 +109,12 @@ export class Contract {
     if (typeof(constructorContext_0.initialZswapLocalState) !== 'object') {
       throw new __compactRuntime.CompactError(`Contract state constructor: expected 'initialZswapLocalState' in argument 1 (as invoked from Typescript) to be an object`);
     }
-    if (!(typeof(myAge_0) === 'bigint' && myAge_0 >= 0n && myAge_0 <= 4294967295n)) {
+    if (!(typeof(threshold_0) === 'bigint' && threshold_0 >= 0n && threshold_0 <= 4294967295n)) {
       __compactRuntime.typeError('Contract state constructor',
                                  'argument 1 (argument 2 as invoked from Typescript)',
                                  'age-verifier.compact line 6 char 1',
                                  'Uint<0..4294967296>',
-                                 myAge_0)
+                                 threshold_0)
     }
     const state_0 = new __compactRuntime.ContractState();
     let stateValue_0 = __compactRuntime.StateValue.newArray();
@@ -121,29 +129,8 @@ export class Contract {
       publicTranscript: [],
       privateTranscriptOutputs: []
     };
-    __compactRuntime.queryLedgerState(context,
-                                      partialProofData,
-                                      [
-                                       { push: { storage: false,
-                                                 value: __compactRuntime.StateValue.newCell({ value: _descriptor_7.toValue(0n),
-                                                                                              alignment: _descriptor_7.alignment() }).encode() } },
-                                       { push: { storage: true,
-                                                 value: __compactRuntime.StateValue.newCell({ value: _descriptor_6.toValue(0n),
-                                                                                              alignment: _descriptor_6.alignment() }).encode() } },
-                                       { ins: { cached: false, n: 1 } }]);
-    __compactRuntime.queryLedgerState(context,
-                                      partialProofData,
-                                      [
-                                       { push: { storage: false,
-                                                 value: __compactRuntime.StateValue.newCell({ value: _descriptor_7.toValue(1n),
-                                                                                              alignment: _descriptor_7.alignment() }).encode() } },
-                                       { push: { storage: true,
-                                                 value: __compactRuntime.StateValue.newCell({ value: _descriptor_0.toValue(false),
-                                                                                              alignment: _descriptor_0.alignment() }).encode() } },
-                                       { ins: { cached: false, n: 1 } }]);
-    __compactRuntime.assert(myAge_0 >= 18n,
-                            'You do not meet the minimum age requirement!');
-    const tmp_0 = 18n;
+    // Store minimumAge = threshold (publicly disclosed)
+    const tmp_0 = threshold_0;
     __compactRuntime.queryLedgerState(context,
                                       partialProofData,
                                       [
@@ -154,6 +141,7 @@ export class Contract {
                                                  value: __compactRuntime.StateValue.newCell({ value: _descriptor_6.toValue(tmp_0),
                                                                                               alignment: _descriptor_6.alignment() }).encode() } },
                                        { ins: { cached: false, n: 1 } }]);
+    // Store lastVerificationSuccess = false (not yet verified by anyone)
     __compactRuntime.queryLedgerState(context,
                                       partialProofData,
                                       [
@@ -161,7 +149,7 @@ export class Contract {
                                                  value: __compactRuntime.StateValue.newCell({ value: _descriptor_7.toValue(1n),
                                                                                               alignment: _descriptor_7.alignment() }).encode() } },
                                        { push: { storage: true,
-                                                 value: __compactRuntime.StateValue.newCell({ value: _descriptor_0.toValue(true),
+                                                 value: __compactRuntime.StateValue.newCell({ value: _descriptor_0.toValue(false),
                                                                                               alignment: _descriptor_0.alignment() }).encode() } },
                                        { ins: { cached: false, n: 1 } }]);
     state_0.data = new __compactRuntime.ChargedState(context.currentQueryContext.state.state);
@@ -171,7 +159,24 @@ export class Contract {
       currentZswapLocalState: context.currentZswapLocalState
     }
   }
-  _verify_0(context, partialProofData) {
+  _verify_0(context, partialProofData, myAge_0) {
+    // Read minimumAge from ledger
+    const minimumAge_0 = _descriptor_6.fromValue(__compactRuntime.queryLedgerState(context,
+                                                                                    partialProofData,
+                                                                                    [
+                                                                                     { dup: { n: 0 } },
+                                                                                     { idx: { cached: false,
+                                                                                              pushPath: false,
+                                                                                              path: [
+                                                                                                     { tag: 'value',
+                                                                                                       value: { value: _descriptor_7.toValue(0n),
+                                                                                                                alignment: _descriptor_7.alignment() } }] } },
+                                                                                     { popeq: { cached: false,
+                                                                                                result: undefined } }]).value);
+    // Assert: private age must be >= threshold stored in ledger
+    __compactRuntime.assert(myAge_0 >= minimumAge_0,
+                            'You do not meet the minimum age requirement!');
+    // Set lastVerificationSuccess = true
     __compactRuntime.queryLedgerState(context,
                                       partialProofData,
                                       [
@@ -236,4 +241,3 @@ const _dummyContract = new Contract({ });
 export const pureCircuits = {};
 export const contractReferenceLocations =
   { tag: 'publicLedgerArray', indices: { } };
-//# sourceMappingURL=index.js.map

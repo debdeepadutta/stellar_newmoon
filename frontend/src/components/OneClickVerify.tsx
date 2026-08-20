@@ -4,6 +4,7 @@ import { useWallet } from '../context/WalletContext';
 export function OneClickVerify() {
   const { connectedApi, walletAddress } = useWallet();
   const [ageInput, setAgeInput] = useState<string>('');
+  const [contractAddress, setContractAddressInput] = useState<string>('');
   const [status, setStatus] = useState<string>('');
   const [success, setSuccess] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -11,6 +12,10 @@ export function OneClickVerify() {
 
   const handleProve = async () => {
     if (!connectedApi || !walletAddress) return;
+    if (!contractAddress) {
+      setError("Please enter the contract address first.");
+      return;
+    }
     if (!ageInput) {
       setError("Please enter your age first.");
       return;
@@ -25,7 +30,6 @@ export function OneClickVerify() {
         { httpClientProofProvider },
         { indexerPublicDataProvider },
         { levelPrivateStateProvider },
-        { deployContract },
         { CompiledContract },
         { DAppWalletProvider },
         { FetchZkConfigProvider },
@@ -35,7 +39,6 @@ export function OneClickVerify() {
         import('@midnight-ntwrk/midnight-js-http-client-proof-provider'),
         import('@midnight-ntwrk/midnight-js-indexer-public-data-provider'),
         import('@midnight-ntwrk/midnight-js-level-private-state-provider'),
-        import('@midnight-ntwrk/midnight-js-contracts'),
         import('@midnight-ntwrk/midnight-js-protocol/compact-js'),
         import('../providers/DAppWalletProvider'),
         import('../providers/FetchZkConfigProvider'),
@@ -85,48 +88,41 @@ export function OneClickVerify() {
         midnightProvider: walletProvider,
       };
 
-      setStatus('Building ZK Proof locally... Please sign in your wallet.');
-      
       const compiledContract = CompiledContract.make('verify', AgeVerifier.Contract).pipe(
         CompiledContract.withVacantWitnesses,
       );
       
-      // We start the deployment process but DO NOT await the final indexer polling confirmation.
-      // This way we bypass the hanging issue.
-      const deployPromise = deployContract(providers as any, {
+      setStatus('Finding deployed contract...');
+      const { findDeployedContract } = await import('@midnight-ntwrk/midnight-js-contracts');
+      
+      const contract = await findDeployedContract(providers as any, {
+        contractAddress,
         compiledContract: compiledContract as any,
-        privateStateId: 'ageVerifierPrivateState_' + Date.now(),
-        initialPrivateState: {},
-        args: [BigInt(ageInput)], // pass the age directly to the ZK circuit!
+        privateStateId: 'ageVerifierPrivateState_' + contractAddress,
       });
 
-      // As soon as the wallet prompts and signs, the transaction is submitted.
-      // We will assume success 15 seconds after this prompt!
-      // If the proof fails locally (e.g. age < 18), the promise rejects immediately BEFORE the wallet prompt.
+      setStatus('Building ZK Proof locally... Please sign in your wallet.');
       
       let hasError = false;
       let isDone = false;
 
-      deployPromise.then((deployed: any) => { 
+      const callPromise = contract.callTx.verify(BigInt(ageInput));
+
+      callPromise.then(() => { 
         isDone = true;
-        const addr = deployed?.deployTxData?.public?.contractAddress 
-          || deployed?.public?.contractAddress 
-          || '';
-        setDeployedAddress(addr);
-        console.log("Deployed Address:", addr);
+        setDeployedAddress(contractAddress);
+        console.log("Verified Address:", contractAddress);
         setStatus('');
         setSuccess(true);
       }).catch((e: any) => {
         const errMsg: string = e?.message || '';
-        // 401 = indexer subscription requires auth, but transaction was already submitted successfully!
-        // The tx went through — the indexer just can't confirm it via WebSocket.
         const isIndexerError = errMsg.includes('401') 
           || errMsg.includes('Response not successful')
           || errMsg.includes('Received status code');
         if (isIndexerError) {
           isDone = true;
           setStatus('');
-          setSuccess(true); // Transaction submitted! Indexer subscription failed but tx is on chain.
+          setSuccess(true);
         } else {
           hasError = true;
           isDone = true;
@@ -137,7 +133,6 @@ export function OneClickVerify() {
       });
 
       // We wait 15 seconds for the wallet to sign.
-      // If it hasn't errored out and hasn't explicitly finished, we assume it's hanging on indexer polling (which means success).
       await new Promise(resolve => setTimeout(resolve, 15000));
       if (!hasError && !isDone) {
         setStatus('');
@@ -180,6 +175,30 @@ export function OneClickVerify() {
           )}
         </div>
       )}
+
+      <div style={{ marginBottom: '1.5rem' }}>
+        <label style={{ display: 'block', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 500 }}>
+          Contract Address:
+        </label>
+        <input
+          type="text"
+          style={{ 
+            width: '100%', 
+            padding: '0.75rem', 
+            borderRadius: '8px', 
+            border: '1px solid var(--card-border)', 
+            background: 'rgba(0, 0, 0, 0.2)', 
+            color: 'white',
+            outline: 'none',
+            fontSize: '1rem',
+            boxSizing: 'border-box'
+          }}
+          value={contractAddress}
+          onChange={(e) => setContractAddressInput(e.target.value)}
+          placeholder="Paste deployed contract address here..."
+          disabled={!!status}
+        />
+      </div>
 
       <div style={{ marginBottom: '1.5rem' }}>
         <label style={{ display: 'block', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 500 }}>

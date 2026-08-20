@@ -53,6 +53,7 @@ export default defineConfig({
     target: 'esnext',
   },
   test: {
+    pool: 'threads',
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/setupTests.ts',

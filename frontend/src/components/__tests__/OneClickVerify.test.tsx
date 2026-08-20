@@ -8,13 +8,14 @@ vi.mock('../../context/WalletContext', () => ({
   useWallet: vi.fn(),
 }));
 
+const MOCK_CONTRACT_ADDRESS = 'abc123def456';
+
 describe('OneClickVerify Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('renders correctly and prompts to connect wallet when not connected', () => {
-    // Mock wallet as disconnected
     vi.spyOn(WalletContextModule, 'useWallet').mockReturnValue({
       connectedApi: null,
       walletAddress: null,
@@ -24,19 +25,15 @@ describe('OneClickVerify Component', () => {
 
     render(<OneClickVerify />);
 
-    // Expect the title to be there
     expect(screen.getByText('1-Click Age Verification')).toBeInTheDocument();
-    
-    // Expect the button to ask for wallet connection
     const button = screen.getByRole('button');
     expect(button).toBeDisabled();
     expect(button).toHaveTextContent('Connect Wallet First');
   });
 
   it('enables the verify button when wallet is connected', () => {
-    // Mock wallet as connected
     vi.spyOn(WalletContextModule, 'useWallet').mockReturnValue({
-      connectedApi: {} as any, // Mock API
+      connectedApi: {} as any,
       walletAddress: 'mock-address',
       isConnecting: false,
       error: null,
@@ -48,8 +45,7 @@ describe('OneClickVerify Component', () => {
     expect(button).toBeEnabled();
   });
 
-  it('shows an error if user tries to prove without entering age', async () => {
-    // Mock wallet as connected
+  it('shows an error if user tries to prove without entering contract address', async () => {
     vi.spyOn(WalletContextModule, 'useWallet').mockReturnValue({
       connectedApi: {} as any,
       walletAddress: 'mock-address',
@@ -59,15 +55,34 @@ describe('OneClickVerify Component', () => {
 
     render(<OneClickVerify />);
 
+    // Click without filling in contract address
     const button = screen.getByRole('button', { name: /Prove Age Anonymously/i });
     fireEvent.click(button);
 
-    // Should show error asking for age
+    expect(await screen.findByText(/Please enter the contract address first/i)).toBeInTheDocument();
+  });
+
+  it('shows an error if user enters contract address but no age', async () => {
+    vi.spyOn(WalletContextModule, 'useWallet').mockReturnValue({
+      connectedApi: {} as any,
+      walletAddress: 'mock-address',
+      isConnecting: false,
+      error: null,
+    } as any);
+
+    render(<OneClickVerify />);
+
+    // Fill in contract address but NOT age
+    const contractInput = screen.getByPlaceholderText(/Paste deployed contract address/i);
+    fireEvent.change(contractInput, { target: { value: MOCK_CONTRACT_ADDRESS } });
+
+    const button = screen.getByRole('button', { name: /Prove Age Anonymously/i });
+    fireEvent.click(button);
+
     expect(await screen.findByText(/Please enter your age first/i)).toBeInTheDocument();
   });
 
-  it('starts verification process when age is entered and button is clicked', async () => {
-    // Mock wallet as connected with required methods
+  it('starts verification process when contract address and age are both entered', async () => {
     const mockApi = {
       getShieldedAddresses: vi.fn().mockResolvedValue({
         shieldedCoinPublicKey: 'mock-coin-key',
@@ -89,18 +104,36 @@ describe('OneClickVerify Component', () => {
 
     render(<OneClickVerify />);
 
-    const input = screen.getByPlaceholderText('e.g. 21');
-    fireEvent.change(input, { target: { value: '25' } });
+    const contractInput = screen.getByPlaceholderText(/Paste deployed contract address/i);
+    fireEvent.change(contractInput, { target: { value: MOCK_CONTRACT_ADDRESS } });
+
+    const ageInput = screen.getByPlaceholderText('e.g. 21');
+    fireEvent.change(ageInput, { target: { value: '25' } });
 
     const button = screen.getByRole('button', { name: /Prove Age Anonymously/i });
     fireEvent.click(button);
 
-    // It should immediately update the UI state to initializing
+    // Should show the initialising status text
     expect(await screen.findByText(/Initializing ZK Circuit\.\.\. Please wait\./i)).toBeInTheDocument();
     expect(button).toBeDisabled();
   });
 
-  it('updates the input value when the user types a new age', () => {
+  it('updates the contract address input when the user types', () => {
+    vi.spyOn(WalletContextModule, 'useWallet').mockReturnValue({
+      connectedApi: {} as any,
+      walletAddress: 'mock-address',
+      isConnecting: false,
+      error: null,
+    } as any);
+
+    render(<OneClickVerify />);
+
+    const contractInput = screen.getByPlaceholderText(/Paste deployed contract address/i);
+    fireEvent.change(contractInput, { target: { value: MOCK_CONTRACT_ADDRESS } });
+    expect(contractInput).toHaveValue(MOCK_CONTRACT_ADDRESS);
+  });
+
+  it('updates the age input value when the user types a new age', () => {
     vi.spyOn(WalletContextModule, 'useWallet').mockReturnValue({
       connectedApi: {} as any,
       walletAddress: 'mock-address',
@@ -112,11 +145,10 @@ describe('OneClickVerify Component', () => {
 
     const input = screen.getByPlaceholderText('e.g. 21');
     fireEvent.change(input, { target: { value: '30' } });
-
     expect(input).toHaveValue(30);
   });
 
-  it('disables the age input when verification is in progress', async () => {
+  it('disables both inputs when verification is in progress', async () => {
     const mockApi = {
       getShieldedAddresses: vi.fn().mockResolvedValue({
         shieldedCoinPublicKey: 'mock-coin-key',
@@ -138,15 +170,19 @@ describe('OneClickVerify Component', () => {
 
     render(<OneClickVerify />);
 
-    const input = screen.getByPlaceholderText('e.g. 21');
-    fireEvent.change(input, { target: { value: '18' } });
+    const contractInput = screen.getByPlaceholderText(/Paste deployed contract address/i);
+    fireEvent.change(contractInput, { target: { value: MOCK_CONTRACT_ADDRESS } });
+
+    const ageInput = screen.getByPlaceholderText('e.g. 21');
+    fireEvent.change(ageInput, { target: { value: '18' } });
 
     const button = screen.getByRole('button', { name: /Prove Age Anonymously/i });
     fireEvent.click(button);
 
-    // Input should be disabled while processing
+    // Both inputs should be disabled while processing
     await waitFor(() => {
-      expect(input).toBeDisabled();
+      expect(ageInput).toBeDisabled();
+      expect(contractInput).toBeDisabled();
     });
   });
 });

@@ -3,14 +3,12 @@ pragma language_version >= 0.23;
 export ledger minimumAge: Uint<32>;
 export ledger lastVerificationSuccess: Boolean;
 
-constructor(myAge: Uint<32>) {
-    assert(myAge >= 18, "You do not meet the minimum age requirement!");
-    minimumAge = 18;
-    lastVerificationSuccess = true;
+constructor(threshold: Uint<32>) {
+    minimumAge = disclose(threshold);
+    lastVerificationSuccess = false;
 }
 
-// We also provide a verify circuit so the SDK can construct a CompiledContract
-// and fetch the necessary .bzkir/.prover files for deployment.
-export circuit verify(): [] {
+export circuit verify(myAge: Uint<32>): [] {
+    assert(myAge >= minimumAge, "You do not meet the minimum age requirement!");
     lastVerificationSuccess = true;
 }
