@@ -245,6 +245,19 @@ export class Contract {
       return { result: [status], context, proofData: partialProofData, gasCost: context.gasCost };
     },
   };
+
+  impureCircuits = {
+    verify: this.circuits.verify,
+    revokeVerification: this.circuits.revokeVerification,
+    isVerified: this.circuits.isVerified,
+  };
+
+  provableCircuits = {
+    verify: this.circuits.verify,
+    revokeVerification: this.circuits.revokeVerification,
+    isVerified: this.circuits.isVerified,
+  };
 }
 
+export const pureCircuits = {};
 export const contractReferenceLocations = { tag: 'publicLedgerArray', indices: {} };
