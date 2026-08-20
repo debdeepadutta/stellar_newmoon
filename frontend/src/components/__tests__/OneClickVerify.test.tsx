@@ -25,10 +25,9 @@ describe('OneClickVerify Component', () => {
 
     render(<OneClickVerify />);
 
-    expect(screen.getByText('1-Click Age Verification')).toBeInTheDocument();
-    const button = screen.getByRole('button');
+    expect(screen.getByText('Age Verification')).toBeInTheDocument();
+    const button = screen.getByRole('button', { name: /Connect Wallet First/i });
     expect(button).toBeDisabled();
-    expect(button).toHaveTextContent('Connect Wallet First');
   });
 
   it('enables the verify button when wallet is connected', () => {
@@ -45,7 +44,7 @@ describe('OneClickVerify Component', () => {
     expect(button).toBeEnabled();
   });
 
-  it('shows an error if user tries to prove without entering contract address', async () => {
+  it('shows an error if user tries to prove without entering age', async () => {
     vi.spyOn(WalletContextModule, 'useWallet').mockReturnValue({
       connectedApi: {} as any,
       walletAddress: 'mock-address',
@@ -55,11 +54,11 @@ describe('OneClickVerify Component', () => {
 
     render(<OneClickVerify />);
 
-    // Click without filling in contract address
+    // Click without filling in age
     const button = screen.getByRole('button', { name: /Prove Age Anonymously/i });
     fireEvent.click(button);
 
-    expect(await screen.findByText(/Please enter the contract address first/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Please enter your age first/i)).toBeInTheDocument();
   });
 
   it('shows an error if user enters contract address but no age', async () => {

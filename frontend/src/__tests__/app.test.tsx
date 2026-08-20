@@ -71,14 +71,13 @@ describe('WalletContext', () => {
 describe('OneClickVerify - button guard', () => {
   it('disables the prove button when no wallet is connected', () => {
     renderWithWallet(<OneClickVerify />);
-    expect(screen.getByRole('button')).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Connect Wallet First/i })).toBeDisabled();
   });
 });
 
-// ── Test 6: Heading is rendered ───────────────────────────────────────────────
 describe('OneClickVerify - content', () => {
   it('renders the Age Verification heading', () => {
     renderWithWallet(<OneClickVerify />);
-    expect(screen.getByText('1-Click Age Verification')).toBeInTheDocument();
+    expect(screen.getByText('Age Verification')).toBeInTheDocument();
   });
 });

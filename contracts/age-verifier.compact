@@ -1,14 +1,46 @@
 pragma language_version >= 0.23;
 
+// ── Ledger state ──────────────────────────────────────────────────────────────
 export ledger minimumAge: Uint<32>;
-export ledger lastVerificationSuccess: Boolean;
+export ledger verifications: Map<Bytes<32>, Boolean>;
 
+// ── Witnesses ─────────────────────────────────────────────────────────────────
+// The caller provides their identity commitment (e.g. derived from their shielded
+// public key) as a private witness.  This is never revealed on-chain; only the
+// map *key* (the userId itself) appears in the public ledger.
+witness getUserId(): Bytes<32>;
+
+// ── Constructor ───────────────────────────────────────────────────────────────
 constructor(threshold: Uint<32>) {
+    assert(threshold >= 18, "Threshold must be at least 18");
     minimumAge = disclose(threshold);
-    lastVerificationSuccess = false;
+    // verifications Map is implicitly initialised to empty by the runtime
 }
 
+// ── verify ────────────────────────────────────────────────────────────────────
+// Proves that the caller's private age satisfies the minimum age requirement
+// and records the result against the caller's userId.
+//   • myAge is kept fully private — it is never written to the ledger.
+//   • Only verifications[userId] = true is written publicly.
 export circuit verify(myAge: Uint<32>): [] {
+    assert(myAge > 0,          "Age must be positive");
+    assert(myAge < 150,        "Age out of valid range");
     assert(myAge >= minimumAge, "You do not meet the minimum age requirement!");
-    lastVerificationSuccess = true;
+    const userId: Bytes<32> = getUserId();
+    verifications[userId] = true;
+}
+
+// ── revokeVerification ────────────────────────────────────────────────────────
+// Lets a user withdraw their own prior verification (e.g. change of circumstances,
+// withdrawal of consent).  Only the caller's own entry can be revoked.
+export circuit revokeVerification(): [] {
+    const userId: Bytes<32> = getUserId();
+    verifications[userId] = false;
+}
+
+// ── isVerified ────────────────────────────────────────────────────────────────
+// Read-only circuit — returns the current verification status for any userId
+// without requiring any private input.  Useful for on-chain gating logic.
+export circuit isVerified(userId: Bytes<32>): [Boolean] {
+    return [verifications[userId]];
 }

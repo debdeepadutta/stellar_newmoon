@@ -1,40 +1,96 @@
 import type * as __compactRuntime from '@midnight-ntwrk/compact-runtime';
 
-export type Witnesses<PS> = {
+// ── Private state ─────────────────────────────────────────────────────────────
+export interface AgeVerifierPrivateState {
+  /** Per-user verification status, keyed by hex-encoded Bytes<32> userId. */
+  _verifications: Map<string, boolean>;
 }
 
-export type ImpureCircuits<PS> = {
-  verify(context: __compactRuntime.CircuitContext<PS>, myAge: bigint): __compactRuntime.CircuitResults<PS, []>;
-}
-
-export type ProvableCircuits<PS> = {
-  verify(context: __compactRuntime.CircuitContext<PS>, myAge: bigint): __compactRuntime.CircuitResults<PS, []>;
-}
-
-export type PureCircuits = {
-}
-
-export type Circuits<PS> = {
-  verify(context: __compactRuntime.CircuitContext<PS>, myAge: bigint): __compactRuntime.CircuitResults<PS, []>;
-}
-
-export type Ledger = {
+// ── Ledger view ───────────────────────────────────────────────────────────────
+export interface AgeVerifierLedger {
   readonly minimumAge: bigint;
-  readonly lastVerificationSuccess: boolean;
 }
 
-export type ContractReferenceLocations = any;
+// ── Witnesses ─────────────────────────────────────────────────────────────────
+export interface AgeVerifierWitnesses {
+  /**
+   * Returns the caller's identity commitment (Bytes<32>).
+   * This is private — never revealed on-chain.
+   */
+  getUserId: (
+    context: __compactRuntime.WitnessContext<AgeVerifierLedger, AgeVerifierPrivateState>,
+  ) => Uint8Array;
+}
 
-export declare const contractReferenceLocations : ContractReferenceLocations;
+// ── Circuit I/O ───────────────────────────────────────────────────────────────
+export type CircuitContext<PS = AgeVerifierPrivateState> =
+  __compactRuntime.CircuitContext<PS>;
 
-export declare class Contract<PS = any, W extends Witnesses<PS> = Witnesses<PS>> {
-  witnesses: W;
-  circuits: Circuits<PS>;
-  impureCircuits: ImpureCircuits<PS>;
-  provableCircuits: ProvableCircuits<PS>;
+export interface CircuitResults<R, PS = AgeVerifierPrivateState> {
+  result: R;
+  context: CircuitContext<PS>;
+  proofData: __compactRuntime.PartialProofData;
+  gasCost: __compactRuntime.RunningCost;
+}
+
+// ── Contract ──────────────────────────────────────────────────────────────────
+export declare class Contract<W extends Partial<AgeVerifierWitnesses> = AgeVerifierWitnesses> {
+  readonly witnesses: W;
+
   constructor(witnesses: W);
-  initialState(context: __compactRuntime.ConstructorContext<PS>, threshold_0: bigint): __compactRuntime.ConstructorResult<PS>;
+
+  /**
+   * Deploys the contract with a minimum age threshold.
+   * @param threshold Must be >= 18; stored as `minimumAge` in the ledger.
+   */
+  initialState(
+    context: CircuitContext<AgeVerifierPrivateState>,
+    threshold: bigint,
+  ): {
+    currentContractState: __compactRuntime.ContractState;
+    currentPrivateState: AgeVerifierPrivateState;
+    currentZswapLocalState: unknown;
+    proofData: __compactRuntime.PartialProofData;
+    gasCost: __compactRuntime.RunningCost;
+  };
+
+  circuits: {
+    /**
+     * Proves age >= minimumAge (and 0 < age < 150) privately.
+     * Sets verifications[getUserId()] = true in the ledger.
+     * @param myAge Caller's private age — never written on-chain.
+     */
+    verify: (
+      context: CircuitContext<AgeVerifierPrivateState>,
+      myAge: bigint,
+    ) => CircuitResults<[]>;
+
+    /**
+     * Revokes the caller's own prior verification.
+     * Sets verifications[getUserId()] = false.
+     */
+    revokeVerification: (
+      context: CircuitContext<AgeVerifierPrivateState>,
+    ) => CircuitResults<[]>;
+
+    /**
+     * Read-only query — returns current verification status for any userId.
+     * Does not require private input.
+     * @param userId The 32-byte identity commitment to query.
+     */
+    isVerified: (
+      context: CircuitContext<AgeVerifierPrivateState>,
+      userId: Uint8Array,
+    ) => CircuitResults<[boolean]>;
+  };
 }
 
-export declare function ledger(state: __compactRuntime.StateValue | __compactRuntime.ChargedState): Ledger;
-export declare const pureCircuits: PureCircuits;
+// ── ledger() helper ───────────────────────────────────────────────────────────
+export declare function ledger(
+  stateOrChargedState:
+    | __compactRuntime.StateValue
+    | __compactRuntime.ChargedState
+    | __compactRuntime.ContractState,
+): AgeVerifierLedger;
+
+export declare const contractReferenceLocations: __compactRuntime.ContractReferenceLocations;

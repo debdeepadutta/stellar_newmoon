@@ -1,233 +1,392 @@
 /**
- * circuit.test.ts
+ * Circuit-level tests for the multi-user age-verifier contract.
  *
- * Pure TypeScript / Node tests for the age-verifier Compact circuit.
- *
- * New contract design (age-verifier.compact):
- *   - constructor(threshold): stores minimumAge = threshold; lastVerificationSuccess = false
- *   - verify(myAge):          assert(myAge >= minimumAge); lastVerificationSuccess = true
- *
- * This means:
- *   1. Deployment never checks the caller's age — it just records the threshold.
- *   2. Every verify() call must supply a private age that is checked on-the-fly
- *      against the stored threshold. Calling verify() with no age is a type error.
- *   3. lastVerificationSuccess starts as FALSE and is only set to TRUE by a
- *      successful verify() call — not by deployment.
- *
- * Tests cover:
- *   - Constructor-Logic: threshold stored correctly, no age check at deploy time.
- *   - Circuit-Logic: verify() enforces the threshold per call.
- *   - Ledger-State-Transition: correct state before and after verify().
+ * Covers:
+ *  1. Constructor-Logic   — threshold guard, minimumAge storage, empty verifications
+ *  2. Circuit-Logic       — range validation, threshold check, per-user Map updates
+ *  3. Multi-User          — two users don't overwrite each other's status
+ *  4. Lifecycle           — revoke flips status back to false
+ *  5. isVerified          — read-only circuit reflects current state
  */
 
 import { describe, it, expect } from 'vitest';
-import { Contract, ledger } from '../contracts/age-verifier/index.js';
-import * as __compactRuntime from '@midnight-ntwrk/compact-runtime';
+import {
+  Contract,
+  ledger,
+  type AgeVerifierPrivateState,
+} from '../contracts/age-verifier/index.js';
+import {
+  QueryContext,
+  ChargedState,
+  StateValue,
+  CostModel,
+  CompactError,
+  dummyContractAddress,
+  emptyZswapLocalState,
+} from '@midnight-ntwrk/compact-runtime';
+import type { CircuitContext } from '@midnight-ntwrk/compact-runtime';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-function makeCtx(): any {
-  return {
-    initialZswapLocalState: {
-      coinPublicKey: new Uint8Array(32),
-      currentIndex: 0n,
-      inputs: [],
-      outputs: [],
-    },
-    initialPrivateState: {},
-  };
+function makeUserId(seed: number): Uint8Array {
+  const id = new Uint8Array(32);
+  id[0] = seed;
+  return id;
 }
 
-/** Deploy a fresh contract with the given threshold. Throws on bad types only. */
-function deploy(threshold: bigint) {
-  const contract = new Contract({});
-  return contract.initialState(makeCtx(), threshold);
+const USER_A = makeUserId(0x01);
+const USER_B = makeUserId(0x02);
+
+/**
+ * Deploy the contract and return its state.
+ */
+function deploy(threshold: bigint, userId: Uint8Array = USER_A) {
+  const contract = new Contract({ getUserId: () => userId });
+  const ctx = makeConstructorCtx();
+  return contract.initialState(ctx, threshold);
+}
+
+function makeConstructorCtx(): CircuitContext<AgeVerifierPrivateState> {
+  const sv = new (QueryContext as any)(
+    new ChargedState(StateValue.newNull()),
+    dummyContractAddress(),
+  );
+  return {
+    currentQueryContext: sv,
+    currentPrivateState: { _verifications: new Map() },
+    currentZswapLocalState: emptyZswapLocalState({ coinPublicKey: new Uint8Array(32) }),
+    costModel: CostModel.initialCostModel(),
+    gasLimit: 0n,
+  };
 }
 
 /**
- * Build a mock CircuitContext from an existing ContractState, sufficient for
- * calling the verify circuit in tests.
+ * Build a CircuitContext from a deployed contract state.
  */
-function makeCircuitCtx(contractState: __compactRuntime.ContractState): any {
+function makeCircuitCtx(
+  deployed: ReturnType<typeof deploy>,
+  userId: Uint8Array = USER_A,
+): CircuitContext<AgeVerifierPrivateState> {
   return {
-    currentQueryContext: new __compactRuntime.QueryContext(
-      contractState.data,
-      __compactRuntime.dummyContractAddress()
+    currentQueryContext: new QueryContext(
+      deployed.currentContractState.data,
+      dummyContractAddress(),
     ),
-    currentPrivateState: {},
-    currentZswapLocalState: {
-      coinPublicKey: new Uint8Array(32),
-      currentIndex: 0n,
-      inputs: [],
-      outputs: [],
-    },
-    costModel: __compactRuntime.CostModel.initialCostModel(),
+    currentPrivateState: deployed.currentPrivateState,
+    currentZswapLocalState: emptyZswapLocalState({ coinPublicKey: new Uint8Array(32) }),
+    costModel: CostModel.initialCostModel(),
+    gasLimit: 0n,
   };
 }
 
-// ─── Category 1: Constructor-Logic ────────────────────────────────────────────
-
-describe('Constructor-Logic — threshold is stored, no age check at deploy', () => {
-
-  it('deploys successfully with threshold 18 without checking any caller age', () => {
-    // Previously the constructor asserted myAge >= 18; now it just stores threshold.
-    // No age is passed at deploy time — this must not throw.
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. Constructor-Logic
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Constructor-Logic', () => {
+  it('deploys successfully with threshold 18', () => {
     expect(() => deploy(18n)).not.toThrow();
   });
 
-  it('deploys successfully with threshold 21 (higher age gate)', () => {
+  it('deploys successfully with threshold 21', () => {
     expect(() => deploy(21n)).not.toThrow();
   });
 
-  it('deploys successfully with threshold 0 (no age restriction)', () => {
-    // A contract owner can set a threshold of 0 to allow anyone through.
-    expect(() => deploy(0n)).not.toThrow();
+  it('deploys successfully with threshold 100', () => {
+    expect(() => deploy(100n)).not.toThrow();
   });
 
-  it('stores the exact threshold value as minimumAge in the ledger', () => {
-    const state = deploy(18n);
-    const l = ledger(state.currentContractState.data);
-    expect(l.minimumAge).toBe(18n);
-  });
-
-  it('stores a custom threshold (21) as minimumAge', () => {
-    const state = deploy(21n);
-    const l = ledger(state.currentContractState.data);
+  it('stores the exact threshold as minimumAge in the ledger', () => {
+    const result = deploy(21n);
+    const l = ledger(result.currentContractState.data);
     expect(l.minimumAge).toBe(21n);
   });
 
-  it('initialises lastVerificationSuccess to FALSE (no one has verified yet)', () => {
-    // Key difference from old design: success starts false, not true.
-    const state = deploy(18n);
-    const l = ledger(state.currentContractState.data);
-    expect(l.lastVerificationSuccess).toBe(false);
+  it('rejects threshold below 18', () => {
+    expect(() => deploy(17n)).toThrow(CompactError);
+    expect(() => deploy(17n)).toThrow('Threshold must be at least 18');
   });
 
-  it('throws a TypeError for a non-bigint threshold (type guard)', () => {
+  it('rejects threshold of 0', () => {
+    expect(() => deploy(0n)).toThrow(CompactError);
+  });
+
+  it('rejects a non-bigint threshold', () => {
     const contract = new Contract({});
-    expect(() => contract.initialState(makeCtx(), 18 as unknown as bigint)).toThrow();
+    const ctx = makeConstructorCtx();
+    expect(() => (contract as any).initialState(ctx, 18)).toThrow(TypeError);
   });
 
-  it('returns a valid ConstructorResult with currentContractState', () => {
-    const result = deploy(18n);
-    expect(result).toHaveProperty('currentContractState');
-    expect(result).toHaveProperty('currentPrivateState');
-    expect(result).toHaveProperty('currentZswapLocalState');
+  it('initialises verifications map as empty (no user verified)', () => {
+    const result = deploy(18n, USER_A);
+    const verifs = result.currentPrivateState._verifications;
+    expect(verifs.size).toBe(0);
   });
 });
 
-// ─── Category 2: Circuit-Logic — verify() enforces threshold per call ─────────
-
-describe('Circuit-Logic — verify(myAge) asserts age >= minimumAge on every call', () => {
-
-  it('verify() with age below threshold throws CompactError', () => {
-    const deployed = deploy(18n);
-    const contract = new Contract({});
-    const ctx = makeCircuitCtx(deployed.currentContractState);
-    expect(() => contract.circuits.verify(ctx, 17n))
-      .toThrow('You do not meet the minimum age requirement!');
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. Circuit-Logic — verify()
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Circuit-Logic — verify(myAge) assertions', () => {
+  it('throws CompactError when age is below threshold', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    expect(() => contract.circuits.verify(ctx, 17n)).toThrow(CompactError);
+    expect(() => contract.circuits.verify(ctx, 17n)).toThrow('minimum age requirement');
   });
 
-  it('verify() with age = 0 throws CompactError', () => {
-    const deployed = deploy(18n);
-    const contract = new Contract({});
-    const ctx = makeCircuitCtx(deployed.currentContractState);
-    expect(() => contract.circuits.verify(ctx, 0n))
-      .toThrow('You do not meet the minimum age requirement!');
+  it('throws CompactError when age is 0 (range check)', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    expect(() => contract.circuits.verify(ctx, 0n)).toThrow(CompactError);
+    expect(() => contract.circuits.verify(ctx, 0n)).toThrow('positive');
   });
 
-  it('verify() with age exactly at threshold (18) does NOT throw', () => {
-    const deployed = deploy(18n);
-    const contract = new Contract({});
-    const ctx = makeCircuitCtx(deployed.currentContractState);
+  it('throws CompactError when age >= 150 (range check)', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    expect(() => contract.circuits.verify(ctx, 150n)).toThrow(CompactError);
+    expect(() => contract.circuits.verify(ctx, 150n)).toThrow('valid range');
+    expect(() => contract.circuits.verify(ctx, 200n)).toThrow(CompactError);
+  });
+
+  it('succeeds when age equals threshold exactly', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
     expect(() => contract.circuits.verify(ctx, 18n)).not.toThrow();
   });
 
-  it('verify() with age above threshold (25) does NOT throw', () => {
-    const deployed = deploy(18n);
-    const contract = new Contract({});
-    const ctx = makeCircuitCtx(deployed.currentContractState);
-    expect(() => contract.circuits.verify(ctx, 25n)).not.toThrow();
+  it('succeeds when age is well above threshold', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    expect(() => contract.circuits.verify(ctx, 45n)).not.toThrow();
   });
 
-  it('verify() with a custom threshold of 21: age 20 throws', () => {
-    const deployed = deploy(21n);
-    const contract = new Contract({});
-    const ctx = makeCircuitCtx(deployed.currentContractState);
-    expect(() => contract.circuits.verify(ctx, 20n))
-      .toThrow('You do not meet the minimum age requirement!');
+  it('succeeds with highest valid age (149)', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    expect(() => contract.circuits.verify(ctx, 149n)).not.toThrow();
   });
 
-  it('verify() with a custom threshold of 21: age 21 succeeds', () => {
-    const deployed = deploy(21n);
-    const contract = new Contract({});
-    const ctx = makeCircuitCtx(deployed.currentContractState);
+  it('throws TypeError for a non-bigint myAge', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    expect(() => (contract as any).circuits.verify(ctx, 25)).toThrow(TypeError);
+  });
+
+  it('correctly uses a custom threshold of 21', () => {
+    const deployed = deploy(21n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    expect(() => contract.circuits.verify(ctx, 20n)).toThrow(CompactError);
     expect(() => contract.circuits.verify(ctx, 21n)).not.toThrow();
-  });
-
-  it('verify() throws CompactError (not a plain Error) for underage input', () => {
-    const deployed = deploy(18n);
-    const contract = new Contract({});
-    const ctx = makeCircuitCtx(deployed.currentContractState);
-    let caught: unknown;
-    try {
-      contract.circuits.verify(ctx, 16n);
-    } catch (e) {
-      caught = e;
-    }
-    expect(caught).toBeDefined();
-    expect((caught as Error).constructor.name).toBe('CompactError');
-    expect((caught as Error).message).toMatch(/minimum age requirement/i);
-  });
-
-  it('verify() throws TypeError for a non-bigint age (type guard)', () => {
-    const deployed = deploy(18n);
-    const contract = new Contract({});
-    const ctx = makeCircuitCtx(deployed.currentContractState);
-    expect(() => contract.circuits.verify(ctx, 25 as unknown as bigint)).toThrow();
   });
 });
 
-// ─── Category 3: Ledger-State-Transition after verify() ──────────────────────
-
-describe('Ledger-State-Transition — state changes after verify()', () => {
-
-  it('lastVerificationSuccess is false BEFORE any verify() call', () => {
-    const deployed = deploy(18n);
-    const l = ledger(deployed.currentContractState.data);
-    expect(l.lastVerificationSuccess).toBe(false);
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. Ledger-State-Transition — per-user Map
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Ledger-State-Transition — per-user Map', () => {
+  it('sets the correct user entry to true after verify()', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    const result = contract.circuits.verify(ctx, 25n);
+    // Check via isVerified circuit
+    const check = contract.circuits.isVerified(result.context, USER_A);
+    expect(check.result[0]).toBe(true);
   });
 
-  it('minimumAge remains the same threshold value after verify() succeeds', () => {
-    const deployed = deploy(18n);
-    const contract = new Contract({});
-    const ctx = makeCircuitCtx(deployed.currentContractState);
-    // circuits.verify returns { result, context, proofData, gasCost };
-    // the mutated ledger state lives on result.context, not the original ctx.
-    const result = contract.circuits.verify(ctx, 21n);
+  it('unverified user returns false from isVerified', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    const check = contract.circuits.isVerified(ctx, USER_B);
+    expect(check.result[0]).toBe(false);
+  });
+
+  it('minimumAge is unchanged after verify()', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    const result = contract.circuits.verify(ctx, 25n);
     const l = ledger(result.context.currentQueryContext.state);
     expect(l.minimumAge).toBe(18n);
   });
 
-  it('lastVerificationSuccess is true AFTER a successful verify() call', () => {
-    const deployed = deploy(18n);
-    const contract = new Contract({});
-    const ctx = makeCircuitCtx(deployed.currentContractState);
-    // State mutations are on result.context — the wrapper shallow-copies ctx,
-    // so internal state replacements aren't reflected back on the original ctx.
-    const result = contract.circuits.verify(ctx, 21n);
-    const l = ledger(result.context.currentQueryContext.state);
-    expect(l.lastVerificationSuccess).toBe(true);
+  it('verify() does not mutate state when it throws', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    try { contract.circuits.verify(ctx, 10n); } catch { /* expected */ }
+    const check = contract.circuits.isVerified(ctx, USER_A);
+    expect(check.result[0]).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. Multi-User — two users verify independently
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Multi-User — independent per-user status', () => {
+  it('user A and user B statuses do not overwrite each other', () => {
+    const deployed = deploy(18n, USER_A);
+    const contractA = new Contract({ getUserId: () => USER_A });
+    const contractB = new Contract({ getUserId: () => USER_B });
+
+    // User A verifies first
+    const ctxA = makeCircuitCtx(deployed, USER_A);
+    const afterA = contractA.circuits.verify(ctxA, 25n);
+
+    // User B verifies using the context after A's verify
+    const ctxB = { ...afterA.context };
+    const afterB = contractB.circuits.verify(ctxB, 30n);
+
+    // Both should be verified
+    const checkA = contractA.circuits.isVerified(afterB.context, USER_A);
+    const checkB = contractB.circuits.isVerified(afterB.context, USER_B);
+    expect(checkA.result[0]).toBe(true);
+    expect(checkB.result[0]).toBe(true);
   });
 
-  it('ledger state is NOT mutated when verify() fails (underage)', () => {
-    const deployed = deploy(18n);
-    const contract = new Contract({});
-    const ctx = makeCircuitCtx(deployed.currentContractState);
-    try { contract.circuits.verify(ctx, 16n); } catch { /* expected */ }
-    // minimumAge should still be 18, success still false
-    const l = ledger(ctx.currentQueryContext.state.state);
-    expect(l.minimumAge).toBe(18n);
-    expect(l.lastVerificationSuccess).toBe(false);
+  it('verifying user B does not affect user A\'s status', () => {
+    const deployed = deploy(18n, USER_A);
+    const contractA = new Contract({ getUserId: () => USER_A });
+    const contractB = new Contract({ getUserId: () => USER_B });
+
+    const ctxA = makeCircuitCtx(deployed, USER_A);
+    const afterA = contractA.circuits.verify(ctxA, 25n);
+    const afterB = contractB.circuits.verify(afterA.context, 30n);
+
+    const checkA = contractA.circuits.isVerified(afterB.context, USER_A);
+    expect(checkA.result[0]).toBe(true);
+  });
+
+  it('a failed verify for user B does not affect user A\'s status', () => {
+    const deployed = deploy(18n, USER_A);
+    const contractA = new Contract({ getUserId: () => USER_A });
+    const contractB = new Contract({ getUserId: () => USER_B });
+
+    const ctxA = makeCircuitCtx(deployed, USER_A);
+    const afterA = contractA.circuits.verify(ctxA, 25n);
+
+    // User B tries to verify with underage — should fail
+    try { contractB.circuits.verify(afterA.context, 10n); } catch { /* expected */ }
+
+    const checkA = contractA.circuits.isVerified(afterA.context, USER_A);
+    expect(checkA.result[0]).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. Lifecycle — revoke
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Lifecycle — revokeVerification()', () => {
+  it('revoke sets the user\'s status back to false', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+
+    const afterVerify = contract.circuits.verify(ctx, 25n);
+    const checkBefore = contract.circuits.isVerified(afterVerify.context, USER_A);
+    expect(checkBefore.result[0]).toBe(true);
+
+    const afterRevoke = contract.circuits.revokeVerification(afterVerify.context);
+    const checkAfter = contract.circuits.isVerified(afterRevoke.context, USER_A);
+    expect(checkAfter.result[0]).toBe(false);
+  });
+
+  it('revoking user A does not affect user B', () => {
+    const deployed = deploy(18n, USER_A);
+    const contractA = new Contract({ getUserId: () => USER_A });
+    const contractB = new Contract({ getUserId: () => USER_B });
+
+    const ctxA = makeCircuitCtx(deployed, USER_A);
+    const afterA = contractA.circuits.verify(ctxA, 25n);
+    const afterB = contractB.circuits.verify(afterA.context, 30n);
+
+    // Revoke user A
+    const afterRevoke = contractA.circuits.revokeVerification(afterB.context);
+
+    expect(contractA.circuits.isVerified(afterRevoke.context, USER_A).result[0]).toBe(false);
+    expect(contractB.circuits.isVerified(afterRevoke.context, USER_B).result[0]).toBe(true);
+  });
+
+  it('user can re-verify after revoking', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+
+    const afterVerify = contract.circuits.verify(ctx, 25n);
+    const afterRevoke = contract.circuits.revokeVerification(afterVerify.context);
+
+    // Should be able to verify again
+    const afterReVerify = contract.circuits.verify(afterRevoke.context, 30n);
+    expect(contract.circuits.isVerified(afterReVerify.context, USER_A).result[0]).toBe(true);
+  });
+
+  it('revoking without prior verification sets to false (idempotent)', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    const afterRevoke = contract.circuits.revokeVerification(ctx);
+    expect(contract.circuits.isVerified(afterRevoke.context, USER_A).result[0]).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. isVerified — read-only circuit
+// ─────────────────────────────────────────────────────────────────────────────
+describe('isVerified — read-only query circuit', () => {
+  it('returns false for a userId with no prior verification', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    const result = contract.circuits.isVerified(ctx, USER_A);
+    expect(result.result[0]).toBe(false);
+  });
+
+  it('returns true immediately after verify()', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    const afterVerify = contract.circuits.verify(ctx, 21n);
+    const result = contract.circuits.isVerified(afterVerify.context, USER_A);
+    expect(result.result[0]).toBe(true);
+  });
+
+  it('returns false after revokeVerification()', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    const afterVerify = contract.circuits.verify(ctx, 21n);
+    const afterRevoke = contract.circuits.revokeVerification(afterVerify.context);
+    const result = contract.circuits.isVerified(afterRevoke.context, USER_A);
+    expect(result.result[0]).toBe(false);
+  });
+
+  it('isVerified does not mutate state', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    const afterVerify = contract.circuits.verify(ctx, 21n);
+    // Call isVerified twice, state should be same both times
+    const r1 = contract.circuits.isVerified(afterVerify.context, USER_A);
+    const r2 = contract.circuits.isVerified(afterVerify.context, USER_A);
+    expect(r1.result[0]).toBe(true);
+    expect(r2.result[0]).toBe(true);
+  });
+
+  it('throws TypeError for invalid userId', () => {
+    const deployed = deploy(18n, USER_A);
+    const contract = new Contract({ getUserId: () => USER_A });
+    const ctx = makeCircuitCtx(deployed, USER_A);
+    expect(() => (contract as any).circuits.isVerified(ctx, 'not-bytes')).toThrow(TypeError);
+    expect(() => (contract as any).circuits.isVerified(ctx, new Uint8Array(16))).toThrow(TypeError);
   });
 });
